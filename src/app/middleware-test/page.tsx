@@ -4,67 +4,58 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/infrastructure/supabase-client/client'
 
 interface TestResult {
-  scenario: string
+  id: string
+  name: string
   url: string
   expected: string
   actual: string
   status: 'success' | 'error' | 'pending'
+  type: 'landing' | 'tenant' | 'error'
+  tenant?: any
+  description: string
+}
+
+interface TestScenario {
+  id: string
+  name: string
+  url: string
+  expectedSubdomain: string | null
+  description: string
+  type: 'landing' | 'tenant' | 'error'
+  tenant?: any
 }
 
 export default function MiddlewareTestSuite() {
   const [testResults, setTestResults] = useState<TestResult[]>([])
   const [isRunning, setIsRunning] = useState(false)
+  const [scenarios, setScenarios] = useState<TestScenario[]>([])
+  const [loadingScenarios, setLoadingScenarios] = useState(true)
+  const [tenants, setTenants] = useState<any[]>([])
 
-  const scenarios = [
-    {
-      name: 'Landing Page (no subdomain)',
-      url: 'http://localhost:3000/api/test-headers',
-      expectedSubdomain: null,
-      description: 'Debe ir a landing sin tenant context'
-    },
-    {
-      name: 'Demo Tenant',
-      url: 'http://demo.localhost:3000/api/test-headers',
-      expectedSubdomain: 'demo',
-      description: 'Debe detectar subdominio demo'
-    },
-    {
-      name: 'Test Tenant',
-      url: 'http://test.localhost:3000/api/test-headers',
-      expectedSubdomain: 'test',
-      description: 'Debe detectar subdominio test'
-    },
-    {
-      name: 'WWW Redirect (no subdomain)',
-      url: 'http://www.localhost:3000/api/test-headers',
-      expectedSubdomain: null,
-      description: 'www debe ser tratado como landing'
-    },
-    {
-      name: 'IP Address (no subdomain)',
-      url: 'http://127.0.0.1:3000/api/test-headers',
-      expectedSubdomain: null,
-      description: 'IP debe ir a landing sin subdominio'
-    },
-    {
-      name: 'Custom Domain',
-      url: 'http://store.example.com/api/test-headers',
-      expectedSubdomain: 'store',
-      description: 'Dominio personalizado debe extraer subdominio'
-    },
-    {
-      name: 'Nested Subdomain',
-      url: 'http://api.store.example.com/api/test-headers',
-      expectedSubdomain: 'api',
-      description: 'Subdominios anidados deben funcionar'
-    },
-    {
-      name: 'Reserved Subdomain (blocked)',
-      url: 'http://admin.localhost:3000/api/test-headers',
-      expectedSubdomain: null,
-      description: 'Subdominios reservados deben ser bloqueados'
+  // Cargar escenarios dinámicamente desde la BD
+  useEffect(() => {
+    loadTestScenarios()
+  }, [])
+
+  const loadTestScenarios = async () => {
+    try {
+      setLoadingScenarios(true)
+      const response = await fetch('/api/tenants')
+      
+      if (response.ok) {
+        const data = await response.json()
+        setScenarios(data.testScenarios || [])
+        setTenants(data.tenants || [])
+        console.log('🎯 Loaded scenarios from database:', data.testScenarios?.length || 0)
+      } else {
+        console.error('❌ Failed to load test scenarios')
+      }
+    } catch (error) {
+      console.error('❌ Error loading scenarios:', error)
+    } finally {
+      setLoadingScenarios(false)
     }
-  ]
+  }
 
   const runTests = async () => {
     setIsRunning(true)
@@ -74,17 +65,25 @@ export default function MiddlewareTestSuite() {
     
     for (const scenario of scenarios) {
       const result: TestResult = {
-        scenario: scenario.name,
+        id: scenario.id,
+        name: scenario.name,
         url: scenario.url,
         expected: scenario.expectedSubdomain || 'null',
         actual: '',
-        status: 'pending'
+        status: 'pending',
+        type: scenario.type,
+        tenant: scenario.tenant,
+        description: scenario.description
       }
       
       try {
+        // Extraer host de la URL para el header
+        const urlObj = new URL(scenario.url)
+        const hostHeader = urlObj.host
+        
         const response = await fetch(scenario.url, {
           headers: {
-            'Host': new URL(scenario.url).host
+            'Host': hostHeader
           }
         })
         
@@ -93,18 +92,18 @@ export default function MiddlewareTestSuite() {
           result.actual = data['x-tenant-subdomain'] || 'null'
           result.status = result.actual === result.expected ? 'success' : 'error'
         } else {
-          result.actual = 'ERROR'
+          result.actual = `HTTP ${response.status}`
           result.status = 'error'
         }
       } catch (error) {
-        result.actual = 'FAILED'
+        result.actual = 'NETWORK ERROR'
         result.status = 'error'
       }
       
       results.push(result)
       
-      // Pequeña pausa entre tests
-      await new Promise(resolve => setTimeout(resolve, 100))
+      // Pequeña pausa entre tests para no sobrecargar
+      await new Promise(resolve => setTimeout(resolve, 200))
     }
     
     setTestResults(results)
@@ -198,21 +197,61 @@ export default function MiddlewareTestSuite() {
           </div>
         )}
 
-        {/* Test Scenarios Info */}
-        <div className="mt-8 bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">🧪 Test Scenarios</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {scenarios.map((scenario, index) => (
-              <div key={index} className="border-l-4 border-blue-500 pl-4">
-                <h4 className="font-semibold text-gray-800">{scenario.name}</h4>
-                <p className="text-sm text-gray-600 mt-1">{scenario.description}</p>
-                <p className="text-xs text-gray-500 mt-2 font-mono">
-                  Expected subdomain: {scenario.expectedSubdomain || 'null'}
-                </p>
-              </div>
-            ))}
+        {/* Database Tenants Info */}
+        {!loadingScenarios && tenants.length > 0 && (
+          <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-blue-800 mb-4">🗄️ Active Tenants in Database</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {tenants.map((tenant, index) => (
+                <div key={tenant.id} className="border border-blue-300 rounded p-3 bg-white">
+                  <div className="font-semibold text-blue-900">{tenant.name}</div>
+                  <div className="text-sm text-blue-700">{tenant.subdomain}.zylos.com</div>
+                  <div className="text-xs text-blue-600">ID: {tenant.id}</div>
+                  <div className="text-xs text-green-600">✅ Active</div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Test Scenarios Info */}
+        {!loadingScenarios && (
+          <div className="mt-8 bg-white border border-gray-200 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">🧪 Dynamic Test Scenarios</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Escenarios generados automáticamente desde los {tenants.length} tenants activos en la base de datos
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {scenarios.map((scenario, index) => (
+                <div key={scenario.id} className={`border-l-4 pl-4 ${
+                  scenario.type === 'tenant' ? 'border-green-500' :
+                  scenario.type === 'landing' ? 'border-blue-500' :
+                  'border-red-500'
+                }`}>
+                  <div className="flex items-start justify-between mb-2">
+                    <h4 className="font-semibold text-gray-800">{scenario.name}</h4>
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      scenario.type === 'tenant' ? 'bg-green-100 text-green-800' :
+                      scenario.type === 'landing' ? 'bg-blue-100 text-blue-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {scenario.type.toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">{scenario.description}</p>
+                  <p className="text-xs text-gray-500 mt-2 font-mono">
+                    Expected: {scenario.expectedSubdomain || 'null'}
+                  </p>
+                  {scenario.tenant && (
+                    <div className="text-xs text-green-600 mt-1">
+                      Tenant: {scenario.tenant.name} ({scenario.tenant.id})
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Implementation Details */}
         <div className="mt-8 bg-white border border-gray-200 rounded-lg p-6">
