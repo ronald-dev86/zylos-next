@@ -1,36 +1,128 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Zylos ERP/POS Multi-tenant
+
+## Architecture Overview
+
+Zylos is a multi-tenant ERP/POS system built with Next.js 15 and Supabase, designed for massive scalability and efficient operational costs.
+
+### Key Architecture Principles
+
+- **Multi-tenancy**: Logical isolation via subdomains (tenant.zylos.com)
+- **Security**: Mandatory Row Level Security (RLS) in PostgreSQL
+- **Data Integrity**: Immutable ledger model for financial tracking
+- **Clean Architecture**: Clear separation between domain, application, and infrastructure layers
+- **Type Safety**: TypeScript strict mode with comprehensive Zod validation
+
+### Tech Stack
+
+- **Frontend**: Next.js 15+ (App Router), TypeScript (Strict Mode)
+- **Backend/DB**: Supabase (PostgreSQL), Edge Functions
+- **Validation**: Zod schemas for all data contracts
+- **UI**: Tailwind CSS + Shadcn/UI
+
+## Project Structure
+
+```
+/zylos-erp
+├── /supabase            # Migrations and Seed (DB source of truth)
+├── /src
+│   ├── /app             # Dynamic routes by subdomain
+│   ├── /core            # Business logic (Zylos use cases)
+│   ├── /infrastructure  # API clients, Supabase, external services
+│   └── /shared          # Common UI components and utilities
+└── README.md
+```
 
 ## Getting Started
 
-First, run the development server:
+1. **Clone and install dependencies**
+   ```bash
+   git clone <repository>
+   cd zylos
+   npm install
+   ```
+
+2. **Environment setup**
+   ```bash
+   cp .env.example .env.local
+   # Configure your Supabase credentials
+   ```
+
+3. **Database setup**
+   ```bash
+   # Apply migrations to your Supabase project
+   supabase db push
+   # Seed initial data
+   supabase db seed
+   ```
+
+4. **Start development server**
+   ```bash
+   npm run dev
+   ```
+
+## Database Design
+
+### Core Tables
+
+- **tenants**: Multi-tenant isolation
+- **users**: User management with RBAC
+- **products**: Product catalog
+- **inventory_movements**: Immutable stock tracking
+- **customers/suppliers**: Contact management
+- **ledger_entries**: Financial ledger (immutable)
+
+### Security
+
+- All tables use Row Level Security (RLS)
+- JWT-based tenant isolation
+- Role-based access control: super_admin, admin, vendedor, contador
+
+## Development Workflow
+
+### Core Principles
+
+1. **Zero Hardcoding**: All tenant context must be dynamic
+2. **Atomic Operations**: Critical processes use database functions for transactionality
+3. **Clean Architecture**: Maintain clear layer separation
+
+### Adding Features
+
+1. Define domain entities in `/src/core/domain/`
+2. Create use cases in `/src/core/use-cases/`
+3. Implement infrastructure adapters in `/src/infrastructure/`
+4. Build UI components in `/src/shared/components/`
+
+## Business Logic Functions
+
+The system includes PostgreSQL functions for critical operations:
+
+- `calculate_stock()`: Real-time inventory calculation
+- `record_inventory_movement()`: Transactional stock management
+- `create_sale_transaction()`: Complete sales processing
+- `get_customer_balance()` / `get_supplier_balance()`: Financial balances
+- `record_payment()`: Payment processing
+
+## Testing
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Run tests
+npm test
+
+# Type checking
+npm run typecheck
+
+# Linting
+npm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Deployment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+This MVP is designed for Vercel + Supabase deployment:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Connect your Vercel project to the repository
+2. Configure environment variables in Vercel
+3. Deploy with automatic CI/CD
 
-## Learn More
+## License
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+[Your License Here]
