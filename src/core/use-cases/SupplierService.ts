@@ -4,7 +4,10 @@ import {
   UpdateSupplier,
   SupplierQuery,
   ApiResponse,
-  PaginatedResponse 
+  PaginatedResponse,
+  CreateSupplierSchema,
+  UpdateSupplierSchema,
+  SupplierQuerySchema
 } from '@/shared/types/schemas'
 import { PaginationParams } from '@/shared/types/common'
 import { SupplierRepository } from '@/infrastructure/database/SupplierRepository'
@@ -176,7 +179,7 @@ export class SupplierService {
         return {
           success: false,
           message: 'Search term is required',
-          error: 'SUPPLIER_SEARCH_TERM_REQUIRED'
+          error: 'SUPPLIER_SEARCH_TERM_REQUIRED',
         }
       }
 

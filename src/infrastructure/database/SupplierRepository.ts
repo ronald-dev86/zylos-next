@@ -6,7 +6,10 @@ import {
   UpdateSupplier,
   SupplierQuery,
   ApiResponse,
-  PaginationMeta 
+  PaginationMeta,
+  CreateSupplierSchema,
+  UpdateSupplierSchema,
+  SupplierQuerySchema
 } from '@/shared/types/schemas'
 import { PaginationParams, PaginatedResponse } from '@/shared/types/common'
 
@@ -52,11 +55,12 @@ export class SupplierRepository implements ISupplierRepository {
       }
     } catch (error) {
       console.error('Supplier validation error:', error)
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Validation error',
-        error: 'SUPPLIER_VALIDATION_ERROR'
-      }
+        return {
+          success: false,
+          message: error instanceof Error ? error.message : 'Validation error',
+          error: 'SUPPLIER_VALIDATION_ERROR',
+          details: error instanceof Error ? error.message : null
+        }
     }
   }
 
@@ -179,11 +183,12 @@ export class SupplierRepository implements ISupplierRepository {
       }
     } catch (error) {
       console.error('Supplier query validation error:', error)
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Query validation error',
-        error: 'SUPPLIER_QUERY_ERROR'
-      }
+        return {
+          success: false,
+          message: error instanceof Error ? error.message : 'Query validation error',
+          error: 'SUPPLIER_QUERY_ERROR',
+          details: error instanceof Error ? error.message : null
+        }
     }
   }
 
@@ -247,11 +252,12 @@ export class SupplierRepository implements ISupplierRepository {
       }
     } catch (error) {
       console.error('Supplier update validation error:', error)
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Validation error',
-        error: 'SUPPLIER_UPDATE_VALIDATION_ERROR'
-      }
+        return {
+          success: false,
+          message: error instanceof Error ? error.message : 'Validation error',
+          error: 'SUPPLIER_UPDATE_VALIDATION_ERROR',
+          details: error instanceof Error ? error.message : null
+        }
     }
   }
 
@@ -301,18 +307,19 @@ export class SupplierRepository implements ISupplierRepository {
       }
     } catch (error) {
       console.error('Supplier delete error:', error)
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Delete validation error',
-        error: 'SUPPLIER_DELETE_VALIDATION_ERROR'
-      }
+        return {
+          success: false,
+          message: error instanceof Error ? error.message : 'Delete validation error',
+          error: 'SUPPLIER_DELETE_VALIDATION_ERROR',
+          details: error instanceof Error ? error.message : null
+        }
     }
   }
 
   /**
    * Buscar proveedores por nombre con paginación
    */
-  async searchByName(name: string, tenantId: string, pagination: PaginationParams): Promise<PaginatedResponse<Supplier>> {
+  async searchByName(name: string, tenantId: string, pagination: PaginationParams): Promise<ApiResponse<PaginatedResponse<Supplier>>> {
     const query: SupplierQuery = {
       search: name,
       page: pagination.page,
@@ -448,5 +455,5 @@ export interface ISupplierRepository {
   findByTenantId(tenantId: string, query: SupplierQuery): Promise<ApiResponse<PaginatedResponse<Supplier>>>
   update(id: string, tenantId: string, data: UpdateSupplier): Promise<ApiResponse<Supplier>>
   delete(id: string, tenantId: string): Promise<ApiResponse<void>>
-  searchByName(name: string, tenantId: string, pagination: PaginationParams): Promise<PaginatedResponse<Supplier>>
+  searchByName(name: string, tenantId: string, pagination: PaginationParams): Promise<ApiResponse<PaginatedResponse<Supplier>>>
 }
