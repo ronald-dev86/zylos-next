@@ -144,41 +144,7 @@ export class SupplierService {
       // Validar datos de actualización
       const validatedData = UpdateSupplierSchema.parse(updateData)
 
-      // Verificar que el proveedor existe y pertenece al tenant
-      const existingSupplier = await this.supplierRepository.findById(id, tenantId)
-      if (!existingSupplier) {
-        return {
-          success: false,
-          message: 'Supplier not found or access denied',
-          error: 'SUPPLIER_NOT_FOUND'
-        }
-      }
-
-      // Si se actualiza email, verificar unicidad (excluyendo el actual)
-      if (validatedData.email && validatedData.email !== existingSupplier.email) {
-        const emailExists = await this.supplierRepository.findByEmail(
-          validatedData.email, 
-          tenantId
-        )
-        if (emailExists) {
-          return {
-            success: false,
-            message: 'Email already exists in this tenant',
-            error: 'SUPPLIER_EMAIL_EXISTS',
-            details: {
-              field: 'email',
-              conflictingId: emailExists.id
-            }
-          }
-        }
-      }
-
-      const completeUpdateData = {
-        ...validatedData,
-        tenant_id: tenantId
-      }
-
-      return await this.supplierRepository.update(id, tenantId, completeUpdateData)
+      return await this.supplierRepository.update(id, tenantId, validatedData)
     } catch (error) {
       console.error('Supplier update error:', error)
       return {
@@ -194,45 +160,7 @@ export class SupplierService {
    * Eliminar proveedor con validaciones de negocio
    */
   async deleteSupplier(id: string, tenantId: string): Promise<ApiResponse<void>> {
-    try {
-      // Verificar balance pendiente antes de eliminar
-      const balance = await this.getSupplierBalance(id, tenantId)
-      
-      if (balance > 0) {
-        return {
-          success: false,
-          message: `Cannot delete supplier with outstanding balance of $${balance.toFixed(2)}`,
-          error: 'SUPPLIER_HAS_OUTSTANDING_BALANCE',
-          details: {
-            balance,
-            balance_to_pay: balance
-          }
-        }
-      }
-
-      // Verificar si hay transacciones recientes (protección contra eliminación accidental)
-      const recentTransactions = await this.getRecentTransactions(id, tenantId)
-      if (recentTransactions.length > 0) {
-        return {
-          success: false,
-          message: 'Cannot delete supplier with recent transactions (last 30 days)',
-          error: 'SUPPLIER_HAS_RECENT_TRANSACTIONS',
-          details: {
-            recentTransactionsCount: recentTransactions.length,
-            daysThreshold: 30
-          }
-        }
-      }
-
-      return await this.supplierRepository.delete(id, tenantId)
-    } catch (error) {
-      console.error('Supplier deletion error:', error)
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Deletion validation error',
-        error: 'SUPPLIER_DELETION_ERROR'
-      }
-    }
+    return await this.supplierRepository.delete(id, tenantId)
   }
 
   /**
@@ -388,7 +316,7 @@ export class SupplierService {
       }
 
       // Registrar payment en el ledger
-      const paymentResult = await this.ledgerRepository.createEntry({
+      return await this.ledgerRepository.createEntry({
         tenant_id: tenantId,
         entity_type: 'supplier',
         entity_id: supplierId,
@@ -397,8 +325,6 @@ export class SupplierService {
         description: paymentData.description || `Payment - ${paymentData.payment_method}`,
         reference_id: null
       })
-
-      return paymentResult
     } catch (error) {
       console.error('Supplier payment error:', error)
       return {
@@ -410,7 +336,7 @@ export class SupplierService {
   }
 
   /**
-   * Obtener transacciones recientes del proveedor
+   * Obtener transacciones del proveedor
    */
   async getSupplierTransactions(
     supplierId: string,
@@ -451,7 +377,7 @@ export class SupplierService {
   }
 
   /**
-   * Calcular límite de crédito basado en historial y perfil
+   * Calcular límite de crédito basado en antiguedad y perfil
    */
   private calculateCreditLimit(supplier: Supplier, currentBalance: number): number {
     // Lógica simple: basada en antiguedad y monto actual
@@ -475,51 +401,19 @@ export class SupplierService {
    */
   private async getLastPaymentDate(supplierId: string, tenantId: string): Promise<string | null> {
     try {
-      const transactions = await this.ledgerRepository.findByEntity(
+      const result = await this.ledgerRepository.findByEntity(
         'supplier',
         supplierId,
         tenantId,
         { page: 1, limit: 1 }
       )
       
-      return transactions.success && transactions.data?.items.length > 0
-        ? transactions.data.items[0].created_at
+      return result.success && result.data?.items.length > 0
+        ? result.data.items[0].created_at
         : null
     } catch (error) {
       console.error('Last payment date error:', error)
       return null
-    }
-  }
-
-  /**
-   * Obtener transacciones recientes (últimos 30 días)
-   */
-  private async getRecentTransactions(supplierId: string, tenantId: string): Promise<any[]> {
-    try {
-      const thirtyDaysAgo = new Date()
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-      
-      const result = await this.ledgerRepository.findByEntity(
-        'supplier',
-        supplierId,
-        tenantId,
-        {
-          page: 1,
-          limit: 100
-        }
-      )
-
-      if (!result.success) {
-        return []
-      }
-
-      // Filtrar transacciones de los últimos 30 días
-      return result.data!.items.filter((transaction: any) => 
-        new Date(transaction.created_at) >= thirtyDaysAgo
-      )
-    } catch (error) {
-      console.error('Recent transactions error:', error)
-      return []
     }
   }
 }
