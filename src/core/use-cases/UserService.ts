@@ -4,15 +4,21 @@ import { IUserRepository } from '../services/IUserRepository'
 export class UserService {
   constructor(private userRepository: IUserRepository) {}
 
-  async createUser(
+async createUser(
     email: string,
-    tenantId: string,
-    role: 'super_admin' | 'admin' | 'vendedor' | 'contador'
+    role: 'super_admin' | 'admin' | 'vendedor' | 'contador',
+    tenantId?: string // Optional for backward compatibility
   ): Promise<User> {
     // Check if email already exists
     const existingUser = await this.userRepository.findByEmail(email)
     if (existingUser) {
       throw new Error('Email already exists')
+    }
+
+    // Note: User.create() still needs tenantId for admin operations
+    // For tenant-specific users, tenantId comes from repository context
+    if (!tenantId) {
+      throw new Error('Tenant ID is required for user creation')
     }
 
     const userData = User.create(email, tenantId, role)
@@ -27,8 +33,8 @@ export class UserService {
     return await this.userRepository.findByEmail(email)
   }
 
-  async getUsersByTenant(tenantId: string): Promise<User[]> {
-    return await this.userRepository.findByTenantId(tenantId)
+async getUsersByTenant(): Promise<User[]> {
+    return await this.userRepository.findByTenantId()
   }
 
   async updateUserRole(

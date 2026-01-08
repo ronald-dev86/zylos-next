@@ -66,7 +66,7 @@ export class User {
     tenantId: string
     role: 'super_admin' | 'admin' | 'vendedor' | 'contador'
   } {
-    if (!email || !this.isValidEmail(email)) {
+if (!email || !EmailValidator.isValid(email)) {
       throw new Error('Valid email is required')
     }
 
@@ -75,16 +75,13 @@ export class User {
     }
 
     return {
-      email: email.toLowerCase().trim(),
+      email: EmailValidator.normalize(email),
       tenantId,
       role
     }
   }
 
-  private static isValidEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email)
-  }
+import { EmailValidator } from '@/shared/validators/EmailValidator'
 
   hasPermission(permission: string): boolean {
     const permissions = {

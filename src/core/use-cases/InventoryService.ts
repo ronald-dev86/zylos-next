@@ -10,25 +10,21 @@ export class InventoryService {
   ) {}
 
   async recordMovement(
-    tenantId: string,
     productId: string,
     type: 'in' | 'out' | 'adjustment',
     quantity: number,
     reason?: string,
     referenceId?: string
   ): Promise<InventoryMovement> {
-    // Verify product exists and belongs to tenant
-    const product = await this.productRepository.findById(productId, tenantId)
+    // Verify product exists
+    const product = await this.productRepository.findById(productId)
     if (!product) {
       throw new Error('Product not found')
     }
 
     // For outbound movements, check if there's sufficient stock
     if (type === 'out') {
-      const currentStock = await this.inventoryRepository.calculateCurrentStock(
-        productId,
-        tenantId
-      )
+      const currentStock = await this.inventoryRepository.calculateCurrentStock(productId)
       if (currentStock < quantity) {
         throw new Error(
           `Insufficient stock. Current: ${currentStock}, Required: ${quantity}`
@@ -36,20 +32,18 @@ export class InventoryService {
       }
     }
 
-    const movementData = InventoryMovement.create(
-      tenantId,
+    const movementData = {
       productId,
       type,
       quantity,
       reason,
       referenceId
-    )
+    }
 
     return await this.inventoryRepository.create(movementData)
   }
 
   async stockIntake(
-    tenantId: string,
     productId: string,
     quantity: number,
     reason?: string
@@ -59,7 +53,6 @@ export class InventoryService {
     }
 
     return await this.recordMovement(
-      tenantId,
       productId,
       'in',
       quantity,
@@ -68,7 +61,6 @@ export class InventoryService {
   }
 
   async stockSale(
-    tenantId: string,
     productId: string,
     quantity: number,
     reason?: string,
@@ -79,7 +71,6 @@ export class InventoryService {
     }
 
     return await this.recordMovement(
-      tenantId,
       productId,
       'out',
       quantity,
@@ -89,13 +80,11 @@ export class InventoryService {
   }
 
   async stockAdjustment(
-    tenantId: string,
     productId: string,
     quantity: number,
     reason?: string
   ): Promise<InventoryMovement> {
     return await this.recordMovement(
-      tenantId,
       productId,
       'adjustment',
       quantity,
@@ -105,45 +94,34 @@ export class InventoryService {
 
   async getMovementsByProduct(
     productId: string,
-    tenantId: string,
     pagination: PaginationParams
   ): Promise<PaginatedResponse<InventoryMovement>> {
-    return await this.inventoryRepository.findByProductId(
-      productId,
-      tenantId,
-      pagination
-    )
+    return await this.inventoryRepository.findByProductId(productId, pagination)
   }
 
   async getMovementsByTenant(
-    tenantId: string,
     pagination: PaginationParams
   ): Promise<PaginatedResponse<InventoryMovement>> {
-    return await this.inventoryRepository.findByTenantId(tenantId, pagination)
+    return await this.inventoryRepository.findByTenantId(pagination)
   }
 
   async getMovementsByDateRange(
     startDate: Date,
     endDate: Date,
-    tenantId: string,
     pagination: PaginationParams
   ): Promise<PaginatedResponse<InventoryMovement>> {
     return await this.inventoryRepository.findByDateRange(
       startDate,
       endDate,
-      tenantId,
       pagination
     )
   }
 
-  async getCurrentStock(productId: string, tenantId: string): Promise<number> {
-    return await this.inventoryRepository.calculateCurrentStock(productId, tenantId)
+  async getCurrentStock(productId: string): Promise<number> {
+    return await this.inventoryRepository.calculateCurrentStock(productId)
   }
 
-  async getMovementById(
-    id: string,
-    tenantId: string
-  ): Promise<InventoryMovement | null> {
-    return await this.inventoryRepository.findById(id, tenantId)
+  async getMovementById(id: string): Promise<InventoryMovement | null> {
+    return await this.inventoryRepository.findById(id)
   }
 }

@@ -10,48 +10,44 @@ export class ProductService {
   ) {}
 
   async createProduct(
-    tenantId: string,
     name: string,
     sku: string,
     price: number,
     description?: string
   ): Promise<Product> {
-    // Check if SKU already exists for this tenant
-    const existingProduct = await this.productRepository.findBySku(sku, tenantId)
+    // Check if SKU already exists
+    const existingProduct = await this.productRepository.findBySku(sku)
     if (existingProduct) {
       throw new Error('Product SKU already exists')
     }
 
-    const productData = Product.create(tenantId, name, sku, price, description)
+    const productData = { name, sku, price, description }
     return await this.productRepository.create(productData)
   }
 
-  async getProductById(id: string, tenantId: string): Promise<Product | null> {
-    return await this.productRepository.findById(id, tenantId)
+  async getProductById(id: string): Promise<Product | null> {
+    return await this.productRepository.findById(id)
   }
 
-  async getProductBySku(sku: string, tenantId: string): Promise<Product | null> {
-    return await this.productRepository.findBySku(sku, tenantId)
+  async getProductBySku(sku: string): Promise<Product | null> {
+    return await this.productRepository.findBySku(sku)
   }
 
   async getProductsByTenant(
-    tenantId: string,
     pagination: PaginationParams
   ): Promise<PaginatedResponse<Product>> {
-    return await this.productRepository.findByTenantId(tenantId, pagination)
+    return await this.productRepository.findByTenantId(pagination)
   }
 
   async searchProducts(
     name: string,
-    tenantId: string,
     pagination: PaginationParams
   ): Promise<PaginatedResponse<Product>> {
-    return await this.productRepository.searchByName(name, tenantId, pagination)
+    return await this.productRepository.searchByName(name, pagination)
   }
 
   async updateProduct(
     id: string,
-    tenantId: string,
     data: {
       name?: string
       description?: string
@@ -63,29 +59,28 @@ export class ProductService {
       throw new Error('Product price cannot be negative')
     }
 
-    return await this.productRepository.update(id, tenantId, data)
+    return await this.productRepository.update(id, data)
   }
 
-  async deleteProduct(id: string, tenantId: string): Promise<void> {
+  async deleteProduct(id: string): Promise<void> {
     // Check if product has inventory movements
     // This would require additional logic to handle product deletion
-    await this.productRepository.delete(id, tenantId)
+    await this.productRepository.delete(id)
   }
 
-  async getProductStock(productId: string, tenantId: string): Promise<number> {
-    return await this.inventoryRepository.calculateCurrentStock(productId, tenantId)
+  async getProductStock(productId: string): Promise<number> {
+    return await this.inventoryRepository.calculateCurrentStock(productId)
   }
 
   async getProductsWithStock(
-    tenantId: string,
     pagination: PaginationParams
   ): Promise<PaginatedResponse<Product & { stock: number }>> {
-    const products = await this.getProductsByTenant(tenantId, pagination)
+    const products = await this.getProductsByTenant(pagination)
     
     // Add stock information to each product
     const productsWithStock = await Promise.all(
       products.data.map(async (product) => {
-        const stock = await this.getProductStock(product.id, product.tenantId)
+        const stock = await this.getProductStock(product.id)
         return Object.assign(product, { stock })
       })
     )

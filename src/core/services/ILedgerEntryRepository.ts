@@ -3,7 +3,6 @@ import { PaginationParams, PaginatedResponse } from '@/shared/types/common'
 
 export interface ILedgerEntryRepository {
   create(entry: {
-    tenantId: string
     entityType: 'customer' | 'supplier'
     entityId: string
     type: 'credit' | 'debit'
@@ -11,9 +10,9 @@ export interface ILedgerEntryRepository {
     description?: string
     referenceId?: string
   }): Promise<LedgerEntry>
-  findById(id: string, tenantId: string): Promise<LedgerEntry | null>
-  findByEntity(entityType: 'customer' | 'supplier', entityId: string, tenantId: string, pagination: PaginationParams): Promise<PaginatedResponse<LedgerEntry>>
-  findByTenantId(tenantId: string, pagination: PaginationParams): Promise<PaginatedResponse<LedgerEntry>>
-  calculateEntityBalance(entityType: 'customer' | 'supplier', entityId: string, tenantId: string): Promise<number>
-  findByDateRange(startDate: Date, endDate: Date, tenantId: string, pagination: PaginationParams): Promise<PaginatedResponse<LedgerEntry>>
+  findById(id: string): Promise<LedgerEntry | null>
+  findByEntity(entityType: 'customer' | 'supplier', entityId: string, pagination: PaginationParams): Promise<PaginatedResponse<LedgerEntry>>
+  findByTenantId(pagination: PaginationParams): Promise<PaginatedResponse<LedgerEntry>>
+  calculateEntityBalance(entityType: 'customer' | 'supplier', entityId: string): Promise<number>
+  findByDateRange(startDate: Date, endDate: Date, pagination: PaginationParams): Promise<PaginatedResponse<LedgerEntry>>
 }

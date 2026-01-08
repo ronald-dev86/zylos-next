@@ -60,25 +60,19 @@ export class InventoryMovement {
     return this._createdAt
   }
 
-  static create(
-    tenantId: string,
+static create(
     productId: string,
     type: 'in' | 'out' | 'adjustment',
     quantity: number,
     reason?: string,
     referenceId?: string
   ): {
-    tenantId: string
     productId: string
     type: 'in' | 'out' | 'adjustment'
     quantity: number
     reason?: string
     referenceId?: string
   } {
-    if (!tenantId) {
-      throw new Error('Tenant ID is required')
-    }
-
     if (!productId) {
       throw new Error('Product ID is required')
     }
@@ -88,7 +82,6 @@ export class InventoryMovement {
     }
 
     return {
-      tenantId,
       productId,
       type,
       quantity,

@@ -12,7 +12,6 @@ export class LedgerService {
   ) {}
 
   async createEntry(
-    tenantId: string,
     entityType: 'customer' | 'supplier',
     entityId: string,
     type: 'credit' | 'debit',
@@ -20,34 +19,32 @@ export class LedgerService {
     description?: string,
     referenceId?: string
   ): Promise<LedgerEntry> {
-    // Verify entity exists and belongs to tenant
+    // Verify entity exists
     if (entityType === 'customer') {
-      const customer = await this.customerRepository.findById(entityId, tenantId)
+      const customer = await this.customerRepository.findById(entityId)
       if (!customer) {
         throw new Error('Customer not found')
       }
     } else {
-      const supplier = await this.supplierRepository.findById(entityId, tenantId)
+      const supplier = await this.supplierRepository.findById(entityId)
       if (!supplier) {
         throw new Error('Supplier not found')
       }
     }
 
-    const entryData = LedgerEntry.create(
-      tenantId,
+    const entryData = {
       entityType,
       entityId,
       type,
       amount,
       description,
       referenceId
-    )
+    }
 
     return await this.ledgerRepository.create(entryData)
   }
 
   async recordCustomerCredit(
-    tenantId: string,
     customerId: string,
     amount: number,
     description?: string,
@@ -58,7 +55,6 @@ export class LedgerService {
     }
 
     return await this.createEntry(
-      tenantId,
       'customer',
       customerId,
       'credit',
@@ -69,7 +65,6 @@ export class LedgerService {
   }
 
   async recordCustomerDebit(
-    tenantId: string,
     customerId: string,
     amount: number,
     description?: string,
@@ -80,7 +75,7 @@ export class LedgerService {
     }
 
     // Check if payment would exceed current balance
-    const currentBalance = await this.getCustomerBalance(customerId, tenantId)
+    const currentBalance = await this.getCustomerBalance(customerId)
     if (currentBalance < amount) {
       throw new Error(
         `Payment amount exceeds customer balance. Current: ${currentBalance}, Payment: ${amount}`
@@ -88,7 +83,6 @@ export class LedgerService {
     }
 
     return await this.createEntry(
-      tenantId,
       'customer',
       customerId,
       'debit',
@@ -99,7 +93,6 @@ export class LedgerService {
   }
 
   async recordSupplierDebit(
-    tenantId: string,
     supplierId: string,
     amount: number,
     description?: string,
@@ -110,7 +103,6 @@ export class LedgerService {
     }
 
     return await this.createEntry(
-      tenantId,
       'supplier',
       supplierId,
       'debit',
@@ -121,7 +113,6 @@ export class LedgerService {
   }
 
   async recordSupplierCredit(
-    tenantId: string,
     supplierId: string,
     amount: number,
     description?: string,
@@ -132,7 +123,7 @@ export class LedgerService {
     }
 
     // Check if payment would exceed current balance
-    const currentBalance = await this.getSupplierBalance(supplierId, tenantId)
+    const currentBalance = await this.getSupplierBalance(supplierId)
     if (currentBalance < amount) {
       throw new Error(
         `Payment amount exceeds supplier balance. Current: ${currentBalance}, Payment: ${amount}`
@@ -140,7 +131,6 @@ export class LedgerService {
     }
 
     return await this.createEntry(
-      tenantId,
       'supplier',
       supplierId,
       'credit',
@@ -150,70 +140,47 @@ export class LedgerService {
     )
   }
 
-  async getCustomerBalance(customerId: string, tenantId: string): Promise<number> {
-    return await this.ledgerRepository.calculateEntityBalance(
-      'customer',
-      customerId,
-      tenantId
-    )
+  async getCustomerBalance(customerId: string): Promise<number> {
+    return await this.ledgerRepository.calculateEntityBalance('customer', customerId)
   }
 
-  async getSupplierBalance(supplierId: string, tenantId: string): Promise<number> {
-    return await this.ledgerRepository.calculateEntityBalance(
-      'supplier',
-      supplierId,
-      tenantId
-    )
+  async getSupplierBalance(supplierId: string): Promise<number> {
+    return await this.ledgerRepository.calculateEntityBalance('supplier', supplierId)
   }
 
   async getCustomerLedgerEntries(
     customerId: string,
-    tenantId: string,
     pagination: PaginationParams
   ): Promise<PaginatedResponse<LedgerEntry>> {
-    return await this.ledgerRepository.findByEntity(
-      'customer',
-      customerId,
-      tenantId,
-      pagination
-    )
+    return await this.ledgerRepository.findByEntity('customer', customerId, pagination)
   }
 
   async getSupplierLedgerEntries(
     supplierId: string,
-    tenantId: string,
     pagination: PaginationParams
   ): Promise<PaginatedResponse<LedgerEntry>> {
-    return await this.ledgerRepository.findByEntity(
-      'supplier',
-      supplierId,
-      tenantId,
-      pagination
-    )
+    return await this.ledgerRepository.findByEntity('supplier', supplierId, pagination)
   }
 
   async getLedgerEntriesByTenant(
-    tenantId: string,
     pagination: PaginationParams
   ): Promise<PaginatedResponse<LedgerEntry>> {
-    return await this.ledgerRepository.findByTenantId(tenantId, pagination)
+    return await this.ledgerRepository.findByTenantId(pagination)
   }
 
   async getLedgerEntriesByDateRange(
     startDate: Date,
     endDate: Date,
-    tenantId: string,
     pagination: PaginationParams
   ): Promise<PaginatedResponse<LedgerEntry>> {
     return await this.ledgerRepository.findByDateRange(
       startDate,
       endDate,
-      tenantId,
       pagination
     )
   }
 
-  async getLedgerEntryById(id: string, tenantId: string): Promise<LedgerEntry | null> {
-    return await this.ledgerRepository.findById(id, tenantId)
+  async getLedgerEntryById(id: string): Promise<LedgerEntry | null> {
+    return await this.ledgerRepository.findById(id)
   }
 }

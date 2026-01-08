@@ -1,3 +1,5 @@
+import { EmailValidator } from '@/shared/validators/EmailValidator'
+
 export class Supplier {
   private readonly _id: string
   private readonly _tenantId: string
@@ -60,43 +62,29 @@ export class Supplier {
     return this._updatedAt
   }
 
-  static create(
-    tenantId: string,
+static create(
     name: string,
     email?: string,
     phone?: string,
     address?: string
   ): {
-    tenantId: string
     name: string
     email?: string
     phone?: string
     address?: string
   } {
-    if (!tenantId) {
-      throw new Error('Tenant ID is required')
-    }
-
     if (!name || name.trim().length === 0) {
       throw new Error('Supplier name is required')
     }
 
-    if (email && !this.isValidEmail(email)) {
-      throw new Error('Invalid email format')
-    }
+    const normalizedEmail = email ? EmailValidator.validateAndNormalize(email) : undefined
 
     return {
-      tenantId,
       name: name.trim(),
-      email: email?.toLowerCase().trim() || undefined,
+      email: normalizedEmail,
       phone: phone?.trim() || undefined,
       address: address?.trim() || undefined
     }
-  }
-
-  private static isValidEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email)
   }
 
   hasValidContactInfo(): boolean {

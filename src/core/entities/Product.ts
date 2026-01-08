@@ -60,23 +60,17 @@ export class Product {
     return this._updatedAt
   }
 
-  static create(
-    tenantId: string,
+static create(
     name: string,
     sku: string,
     price: number,
     description?: string
   ): {
-    tenantId: string
     name: string
     description?: string
     sku: string
     price: number
   } {
-    if (!tenantId) {
-      throw new Error('Tenant ID is required')
-    }
-
     if (!name || name.trim().length === 0) {
       throw new Error('Product name is required')
     }
@@ -90,7 +84,6 @@ export class Product {
     }
 
     return {
-      tenantId,
       name: name.trim(),
       sku: sku.trim().toUpperCase(),
       price: Number(price.toFixed(2)),

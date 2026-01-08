@@ -67,8 +67,7 @@ export class LedgerEntry {
     return this._createdAt
   }
 
-  static create(
-    tenantId: string,
+static create(
     entityType: 'customer' | 'supplier',
     entityId: string,
     type: 'credit' | 'debit',
@@ -76,7 +75,6 @@ export class LedgerEntry {
     description?: string,
     referenceId?: string
   ): {
-    tenantId: string
     entityType: 'customer' | 'supplier'
     entityId: string
     type: 'credit' | 'debit'
@@ -84,10 +82,6 @@ export class LedgerEntry {
     description?: string
     referenceId?: string
   } {
-    if (!tenantId) {
-      throw new Error('Tenant ID is required')
-    }
-
     if (!entityId) {
       throw new Error('Entity ID is required')
     }
@@ -97,7 +91,6 @@ export class LedgerEntry {
     }
 
     return {
-      tenantId,
       entityType,
       entityId,
       type,
