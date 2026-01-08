@@ -28,6 +28,10 @@ export { SupplierService } from './use-cases/SupplierService'
 export { InventoryService } from './use-cases/InventoryService'
 export { LedgerService } from './use-cases/LedgerService'
 
+// Application services (high-level orchestration)
+export { ApplicationService, type TenantContext } from './application/ApplicationService'
+export { ServiceFactory } from './application/ServiceFactory'
+
 // Core interfaces (repositories)
 export type { ITenantRepository } from './services/ITenantRepository'
 export type { IUserRepository } from './services/IUserRepository'

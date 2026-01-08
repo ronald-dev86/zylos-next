@@ -1,14 +1,17 @@
-import { LedgerEntry } from '../entities/LedgerEntry'
-import { ILedgerEntryRepository } from '../services/ILedgerEntryRepository'
-import { ICustomerRepository } from '../services/ICustomerRepository'
-import { ISupplierRepository } from '../services/ISupplierRepository'
+import { Money } from '@/core/domain/value-objects/Money'
+import { EntityType } from '@/core/domain/enums'
+import { ILedgerEntryRepository } from '@/core/services/ILedgerEntryRepository'
+import { ICustomerRepository } from '@/core/services/ICustomerRepository'
+import { ISupplierRepository } from '@/core/services/ISupplierRepository'
 import { PaginationParams, PaginatedResponse } from '@/shared/types/common'
+import { FinancialService, type FinancialPeriod, type FinancialReport } from '@/core/domain/services/FinancialService'
 
 export class LedgerService {
   constructor(
     private ledgerRepository: ILedgerEntryRepository,
     private customerRepository: ICustomerRepository,
-    private supplierRepository: ISupplierRepository
+    private supplierRepository: ISupplierRepository,
+    private financialService: FinancialService
   ) {}
 
   async createEntry(
@@ -18,7 +21,7 @@ export class LedgerService {
     amount: number,
     description?: string,
     referenceId?: string
-  ): Promise<LedgerEntry> {
+  ): Promise<any> {
     // Verify entity exists
     if (entityType === 'customer') {
       const customer = await this.customerRepository.findById(entityId)
@@ -32,16 +35,49 @@ export class LedgerService {
       }
     }
 
-    const entryData = {
+    // Use domain service for complex financial operations
+    if (entityType === 'customer' && type === 'credit') {
+      return await this.financialService.recordCustomerCredit(
+        entityId,
+        new Money(amount),
+        description,
+        referenceId
+      )
+    }
+
+    if (entityType === 'supplier' && type === 'debit') {
+      return await this.financialService.recordSupplierDebit(
+        entityId,
+        new Money(amount),
+        description,
+        referenceId
+      )
+    }
+
+    // Use domain service for financial validation
+    if (entityType === 'customer' && type === 'debit') {
+      const customerBalance = await this.financialService.getCustomerBalance(entityId)
+      if (customerBalance.amount < amount) {
+        throw new Error('Payment amount exceeds customer balance')
+      }
+    }
+
+    if (entityType === 'supplier' && type === 'credit') {
+      const supplierBalance = await this.financialService.getSupplierBalance(entityId)
+      if (supplierBalance.amount < amount) {
+        throw new Error('Payment amount exceeds supplier balance')
+      }
+    }
+
+    // Create entry using domain service
+    return await this.financialService.createLedgerEntry({
       entityType,
       entityId,
       type,
-      amount,
+      amount: new Money(amount),
       description,
       referenceId
-    }
-
-    return await this.ledgerRepository.create(entryData)
+    })
   }
 
   async recordCustomerCredit(
@@ -49,17 +85,12 @@ export class LedgerService {
     amount: number,
     description?: string,
     referenceId?: string
-  ): Promise<LedgerEntry> {
-    if (amount <= 0) {
-      throw new Error('Credit amount must be positive')
-    }
-
-    return await this.createEntry(
-      'customer',
+  ): Promise<any> {
+    // Delegate to financial service
+    return await this.financialService.recordCustomerCredit(
       customerId,
-      'credit',
-      amount,
-      description || 'Customer credit',
+      new Money(amount),
+      description,
       referenceId
     )
   }
@@ -69,25 +100,12 @@ export class LedgerService {
     amount: number,
     description?: string,
     referenceId?: string
-  ): Promise<LedgerEntry> {
-    if (amount <= 0) {
-      throw new Error('Debit amount must be positive')
-    }
-
-    // Check if payment would exceed current balance
-    const currentBalance = await this.getCustomerBalance(customerId)
-    if (currentBalance < amount) {
-      throw new Error(
-        `Payment amount exceeds customer balance. Current: ${currentBalance}, Payment: ${amount}`
-      )
-    }
-
-    return await this.createEntry(
-      'customer',
+  ): Promise<any> {
+    // Delegate to financial service
+    return await this.financialService.recordCustomerDebit(
       customerId,
-      'debit',
-      amount,
-      description || 'Customer payment',
+      new Money(amount),
+      description,
       referenceId
     )
   }
@@ -96,19 +114,14 @@ export class LedgerService {
     supplierId: string,
     amount: number,
     description?: string,
-    referenceId?: string
-  ): Promise<LedgerEntry> {
-    if (amount <= 0) {
-      throw new Error('Debit amount must be positive')
-    }
-
-    return await this.createEntry(
-      'supplier',
+    refrenceId?: string
+  ): Promise<any> {
+    // Delegate to financial service
+    return await this.financialService.recordSupplierDebit(
       supplierId,
-      'debit',
-      amount,
-      description || 'Supplier purchase',
-      referenceId
+      new Money(amount),
+      description,
+      refrenceId
     )
   }
 
@@ -116,55 +129,42 @@ export class LedgerService {
     supplierId: string,
     amount: number,
     description?: string,
-    referenceId?: string
-  ): Promise<LedgerEntry> {
-    if (amount <= 0) {
-      throw new Error('Credit amount must be positive')
-    }
-
-    // Check if payment would exceed current balance
-    const currentBalance = await this.getSupplierBalance(supplierId)
-    if (currentBalance < amount) {
-      throw new Error(
-        `Payment amount exceeds supplier balance. Current: ${currentBalance}, Payment: ${amount}`
-      )
-    }
-
-    return await this.createEntry(
-      'supplier',
+    refrenceId?: string
+  ): Promise<any> {
+    // Delegate to financial service
+    return await this.financialService.recordSupplierCredit(
       supplierId,
-      'credit',
-      amount,
-      description || 'Supplier payment',
-      referenceId
+      new Money(amount),
+      description,
+      refrenceId
     )
   }
 
   async getCustomerBalance(customerId: string): Promise<number> {
-    return await this.ledgerRepository.calculateEntityBalance('customer', customerId)
+    return (await this.financialService.getCustomerBalance(customerId)).amount
   }
 
   async getSupplierBalance(supplierId: string): Promise<number> {
-    return await this.ledgerRepository.calculateEntityBalance('supplier', supplierId)
+    return (await this.financialService.getSupplierBalance(supplierId)).amount
   }
 
   async getCustomerLedgerEntries(
     customerId: string,
     pagination: PaginationParams
-  ): Promise<PaginatedResponse<LedgerEntry>> {
+  ): Promise<PaginatedResponse<any>> {
     return await this.ledgerRepository.findByEntity('customer', customerId, pagination)
   }
 
   async getSupplierLedgerEntries(
     supplierId: string,
     pagination: PaginationParams
-  ): Promise<PaginatedResponse<LedgerEntry>> {
+  ): Promise<PaginatedResponse<any>> {
     return await this.ledgerRepository.findByEntity('supplier', supplierId, pagination)
   }
 
   async getLedgerEntriesByTenant(
     pagination: PaginationParams
-  ): Promise<PaginatedResponse<LedgerEntry>> {
+  ): Promise<PaginatedResponse<any>> {
     return await this.ledgerRepository.findByTenantId(pagination)
   }
 
@@ -172,15 +172,29 @@ export class LedgerService {
     startDate: Date,
     endDate: Date,
     pagination: PaginationParams
-  ): Promise<PaginatedResponse<LedgerEntry>> {
-    return await this.ledgerRepository.findByDateRange(
-      startDate,
-      endDate,
-      pagination
-    )
+  ): Promise<PaginatedResponse<any>> {
+    return await this.ledgerRepository.findByDateRange(startDate, endDate, pagination)
   }
 
-  async getLedgerEntryById(id: string): Promise<LedgerEntry | null> {
+  async generateFinancialReport(
+    period: FinancialPeriod
+  ): Promise<FinancialReport> {
+    const ledgerEntries = await this.getLedgerEntriesByDateRange(period.startDate, period.endDate, { page: 1, limit: 10000 })
+    
+    // Delegate complex financial reporting to domain service
+    return await this.financialService.generateFinancialReport(ledgerEntries, period)
+  }
+
+  async calculateMetrics(
+    period: FinancialPeriod
+  ): Promise<any> {
+    const ledgerEntries = await this.getLedgerEntriesByDateRange(period.startDate, period.endDate, { page: 1, limit: 10000 })
+    
+    // Delegate complex calculations to domain service
+    return await this.financialService.calculateMetrics(ledgerEntries, period)
+  }
+
+  async getLedgerEntryById(id: string): Promise<any> {
     return await this.ledgerRepository.findById(id)
   }
 }

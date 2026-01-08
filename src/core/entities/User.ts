@@ -1,4 +1,5 @@
 import { AuthUser } from '@/shared/types/common'
+import { EmailValidator } from '@/shared/validators/EmailValidator'
 
 export class User {
   private readonly _id: string
@@ -80,8 +81,6 @@ if (!email || !EmailValidator.isValid(email)) {
       role
     }
   }
-
-import { EmailValidator } from '@/shared/validators/EmailValidator'
 
   hasPermission(permission: string): boolean {
     const permissions = {

@@ -1,27 +1,22 @@
-export class EmailValidator {
-  private static readonly EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+// Re-export domain Email for backward compatibility
+export { Email } from '@/core/domain/value-objects/Email'
 
+// Keep legacy wrapper for existing code
+export class EmailValidator {
   static isValid(email: string): boolean {
-    if (!email || typeof email !== 'string') {
+    try {
+      new Email(email)
+      return true
+    } catch {
       return false
     }
-    
-    const trimmedEmail = email.trim()
-    if (trimmedEmail.length === 0) {
-      return false
-    }
-    
-    return this.EMAIL_REGEX.test(trimmedEmail)
   }
 
   static normalize(email: string): string {
-    return email.toLowerCase().trim()
+    return Email.normalize ? Email.normalize(email) : email.toLowerCase().trim()
   }
 
   static validateAndNormalize(email: string): string {
-    if (!this.isValid(email)) {
-      throw new Error('Invalid email format')
-    }
-    return this.normalize(email)
+    return Email.validateAndNormalize ? Email.validateAndNormalize(email) : email.toLowerCase().trim()
   }
 }

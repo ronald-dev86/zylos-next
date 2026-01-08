@@ -15,14 +15,22 @@ interface InputProps {
 export function Input({
   type = 'text',
   placeholder,
-  value,
+  value = '',
   onChange,
   disabled = false,
   required = false,
   error,
   label,
-  className
+  className = ''
 }: InputProps) {
+  const baseClasses = `
+    w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
+    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+    disabled:bg-gray-100 disabled:cursor-not-allowed
+  `;
+  
+  const errorClasses = error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : '';
+  
   return (
     <div className="w-full">
       {label && (
@@ -38,13 +46,8 @@ export function Input({
         onChange={onChange}
         disabled={disabled}
         required={required}
-        className={`
-          w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
-          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-          disabled:bg-gray-100 disabled:cursor-not-allowed
-          ${error ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''}
-          ${className}
-        `}
+        className={`${baseClasses} ${errorClasses} ${className}`}
+        style={{ WebkitAppearance: 'none' }}
       />
       {error && (
         <p className="mt-1 text-sm text-red-600">{error}</p>
