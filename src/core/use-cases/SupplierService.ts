@@ -4,12 +4,11 @@ import {
   UpdateSupplier,
   SupplierQuery,
   ApiResponse,
-  PaginatedResponse,
   CreateSupplierSchema,
   UpdateSupplierSchema,
   SupplierQuerySchema
 } from '@/shared/types/schemas'
-import { PaginationParams } from '@/shared/types/common'
+import { PaginationParams, PaginatedResponse } from '@/shared/types/common'
 import { SupplierRepository } from '@/infrastructure/database/SupplierRepository'
 import { LedgerEntryRepository } from '@/infrastructure/database/LedgerEntryRepository'
 
@@ -32,7 +31,7 @@ export class SupplierService {
   async createSupplier(
     tenantId: string,
     supplierData: Omit<CreateSupplier, 'tenant_id'>
-  ): Promise<ApiResponse<Supplier>> {
+  ): Promise<ApiResponse<any>> {
     try {
       // Validar datos de entrada
       const validatedData = CreateSupplierSchema.parse(supplierData)
@@ -44,15 +43,15 @@ export class SupplierService {
           tenantId
         )
         if (existingSupplier) {
-          return {
-            success: false,
-            message: 'Email already exists in this tenant',
-            error: 'SUPPLIER_EMAIL_EXISTS',
-            details: {
-              field: 'email',
-              existingId: existingSupplier.id
-            }
+        return {
+          success: false,
+          message: 'Email already exists in this tenant',
+          error: 'SUPPLIER_EMAIL_EXISTS',
+          data: {
+            field: 'email',
+            existingId: existingSupplier.id
           }
+        }
         }
       }
 
@@ -69,7 +68,7 @@ export class SupplierService {
         success: false,
         message: error instanceof Error ? error.message : 'Validation error',
         error: 'SUPPLIER_CREATION_ERROR',
-        details: error instanceof Error ? { validationError: error.message } : null
+        data: error instanceof Error ? { validationError: error.message } : null
       }
     }
   }
@@ -117,8 +116,11 @@ export class SupplierService {
    */
   async getSuppliersByTenant(
     tenantId: string, 
-    query: SupplierQuery = {}
-  ): Promise<ApiResponse<PaginatedResponse<Supplier>>> {
+    query: SupplierQuery = {
+      page: 1,
+      limit: 20
+    }
+  ): Promise<ApiResponse<any>> {
     try {
       // Validar parámetros de consulta
       const validatedQuery = SupplierQuerySchema.parse(query)
@@ -130,7 +132,7 @@ export class SupplierService {
         success: false,
         message: error instanceof Error ? error.message : 'Query validation error',
         error: 'SUPPLIER_QUERY_ERROR',
-        details: error instanceof Error ? { validationError: error.message } : null
+        data: error instanceof Error ? { validationError: error.message } : null
       }
     }
   }
@@ -142,7 +144,7 @@ export class SupplierService {
     id: string,
     tenantId: string,
     updateData: Omit<UpdateSupplier, 'tenant_id'>
-  ): Promise<ApiResponse<Supplier>> {
+  ): Promise<ApiResponse<any>> {
     try {
       // Validar datos de actualización
       const validatedData = UpdateSupplierSchema.parse(updateData)
@@ -154,7 +156,7 @@ export class SupplierService {
         success: false,
         message: error instanceof Error ? error.message : 'Validation error',
         error: 'SUPPLIER_UPDATE_ERROR',
-        details: error instanceof Error ? { validationError: error.message } : null
+        data: error instanceof Error ? { validationError: error.message } : null
       }
     }
   }
@@ -226,7 +228,10 @@ export class SupplierService {
    */
   async getSuppliersWithBalance(
     tenantId: string,
-    query: SupplierQuery = {}
+    query: SupplierQuery = {
+      page: 1,
+      limit: 20
+    }
   ): Promise<ApiResponse<PaginatedResponse<Supplier & { 
     balance: number
     balance_to_pay: number
@@ -244,7 +249,7 @@ export class SupplierService {
 
       // Enriquecer con información de cuenta corriente
       const enrichedSuppliers = await Promise.all(
-        suppliersResponse.data!.items.map(async (supplier) => {
+        suppliersResponse.data!.items        .map(async (supplier: any) => {
           const balance = await this.getSupplierBalance(supplier.id, supplier.tenant_id)
           const lastPayment = await this.getLastPaymentDate(supplier.id, supplier.tenant_id)
           
@@ -320,14 +325,13 @@ export class SupplierService {
 
       // Registrar payment en el ledger
       return await this.ledgerRepository.createEntry({
-        tenant_id: tenantId,
         entity_type: 'supplier',
         entity_id: supplierId,
         type: 'credit', // Credit reduce supplier debt
         amount: paymentData.amount,
         description: paymentData.description || `Payment - ${paymentData.payment_method}`,
-        reference_id: null
-      })
+        reference_id: undefined
+      } as any)
     } catch (error) {
       console.error('Supplier payment error:', error)
       return {

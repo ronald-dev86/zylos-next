@@ -6,6 +6,7 @@ import { createClient } from '@/infrastructure/supabase-client/client'
 interface TestResult {
   id: string
   name: string
+  scenario: string
   url: string
   expected: string
   actual: string
@@ -67,6 +68,7 @@ export default function MiddlewareTestSuite() {
       const result: TestResult = {
         id: scenario.id,
         name: scenario.name,
+        scenario: scenario.name,
         url: scenario.url,
         expected: scenario.expectedSubdomain || 'null',
         actual: '',

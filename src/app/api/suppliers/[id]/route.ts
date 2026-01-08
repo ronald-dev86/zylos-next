@@ -7,9 +7,9 @@ import {
   ApiResponse, 
   CreateSupplier,
   UpdateSupplier,
-  SupplierQuery,
-  PaginationParams 
+  SupplierQuery
 } from '@/shared/types/schemas'
+import { PaginationParams } from '@/shared/types/common'
 
 // Instanciar servicios
 const supplierService = new SupplierService(
@@ -55,10 +55,12 @@ export async function GET(request: NextRequest) {
       limit: query.limit
     }
 
-    return await supplierService.getSuppliersWithBalance(tenantId, {
+    const result = await supplierService.getSuppliersWithBalance(tenantId, {
       ...query,
       ...pagination
     })
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Suppliers GET error:', error)
     return NextResponse.json({
@@ -86,7 +88,8 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     
-    return await supplierService.createSupplier(tenantId, body)
+    const result = await supplierService.createSupplier(tenantId, body)
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Suppliers POST error:', error)
     return NextResponse.json({
@@ -113,7 +116,8 @@ export async function GET_SUPPLIER(request: NextRequest, { params }: { params: P
       }, { status: 401 })
     }
 
-    return await supplierService.getSupplierById(id, tenantId)
+    const result = await supplierService.getSupplierById(id, tenantId)
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Supplier GET by ID error:', error)
     return NextResponse.json({
@@ -142,7 +146,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const body = await request.json()
     
-    return await supplierService.updateSupplier(id, tenantId, body)
+    const result = await supplierService.updateSupplier(id, tenantId, body)
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Supplier PUT error:', error)
     return NextResponse.json({
@@ -169,7 +174,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       }, { status: 401 })
     }
 
-    return await supplierService.deleteSupplier(id, tenantId)
+    const result = await supplierService.deleteSupplier(id, tenantId)
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Supplier DELETE error:', error)
     return NextResponse.json({
@@ -198,7 +204,8 @@ export async function POST_PAYMENT(request: NextRequest, { params }: { params: P
 
     const body = await request.json()
     
-    return await supplierService.processSupplierPayment(id, tenantId, body)
+    const result = await supplierService.processSupplierPayment(id, tenantId, body)
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Supplier payment POST error:', error)
     return NextResponse.json({
@@ -232,7 +239,8 @@ export async function GET_TRANSACTIONS(request: NextRequest, { params }: { param
       limit: searchParams.get('limit') ? Number(searchParams.get('limit')) : 20
     }
 
-    return await supplierService.getSupplierTransactions(id, tenantId, pagination)
+    const result = await supplierService.getSupplierTransactions(id, tenantId, pagination)
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Supplier transactions GET error:', error)
     return NextResponse.json({

@@ -8,6 +8,7 @@ import { ApiResponse } from '@/shared/types/schemas'
 interface TestResult {
   scenario: string
   description: string
+  endpoint: string
   result: 'success' | 'error' | 'pending'
   message: string
   details?: any
@@ -143,6 +144,7 @@ export default function SupplierModuleTestSuite() {
       const result: TestResult = {
         scenario: scenario.name,
         description: scenario.description,
+        endpoint: scenario.endpoint,
         result: 'pending',
         message: '',
         duration: 0

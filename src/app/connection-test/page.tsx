@@ -62,7 +62,7 @@ export default function ConnectionTest() {
           const { data: tenantProducts, error: productsError } = await supabase
             .from('products')
             .select('*')
-            .eq('tenant_id', tenant.id)
+            .eq('tenant_id', (tenant as any)?.id)
 
           if (productsError) {
             console.error('❌ Products error:', productsError)

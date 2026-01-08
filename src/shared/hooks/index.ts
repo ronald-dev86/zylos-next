@@ -9,10 +9,32 @@ export function useAsyncData<T>(
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
+  const fetchData = async () => {
+    const cancelledRef = { current: false }
+    
+    setLoading(true)
+    setError(null)
+
+    try {
+      const result = await fetcher()
+      if (!cancelledRef.current) {
+        setData(result)
+      }
+    } catch (err) {
+      if (!cancelledRef.current) {
+        setError(err as Error)
+      }
+    } finally {
+      if (!cancelledRef.current) {
+        setLoading(false)
+      }
+    }
+  }
+
   useEffect(() => {
     const cancelledRef = { current: false }
 
-    const fetchData = async () => {
+    const runFetch = async () => {
       cancelledRef.current = false
       setLoading(true)
       setError(null)
@@ -33,7 +55,7 @@ export function useAsyncData<T>(
       }
     }
 
-    fetchData()
+    runFetch()
 
     return () => {
       cancelledRef.current = true

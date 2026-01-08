@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react'
 import { SupplierService } from '@/core/use-cases/SupplierService'
 import { SupplierRepository } from '@/infrastructure/database/SupplierRepository'
 import { LedgerEntryRepository } from '@/infrastructure/database/LedgerEntryRepository'
-import { ApiResponse, PaginationParams, Supplier } from '@/shared/types/schemas'
+import { ApiResponse, Supplier } from '@/shared/types/schemas'
+import { PaginationParams } from '@/shared/types/common'
 import { Button } from '@/shared/components/Button'
-import { Input } from '@/shared/components/Input'
+import { Input } from '@/components/ui/input'
 import { Card } from '@/shared/components/Card'
 
 interface SupplierWithBalance extends Supplier {
@@ -291,7 +292,7 @@ export default function SuppliersPage() {
                   <div className="flex gap-2 pt-4 border-t">
                     <Button 
                       size="sm"
-                      variant="outline"
+                      variant="secondary"
                       onClick={() => setEditingSupplier(supplier)}
                     >
                       ✏️ Edit
@@ -309,9 +310,9 @@ export default function SuppliersPage() {
                     
                     <Button 
                       size="sm"
-                      variant="outline"
+                      variant="ghost"
                       onClick={() => handleDeleteSupplier(supplier.id, supplier.name)}
-                      className="text-red-600 hover:text-red-700 hover:border-red-600"
+                      className="text-red-600 hover:text-red-700"
                     >
                       🗑️ Delete
                     </Button>
@@ -333,14 +334,22 @@ export default function SuppliersPage() {
         {pagination.totalPages > 1 && (
           <div className="flex justify-center gap-2 mb-6">
             <Button
-              variant="outline"
+              variant="ghost"
               disabled={pagination.page <= 1}
               onClick={() => {
                 setPagination(prev => ({ ...prev, page: prev.page - 1 }))
-                loadSuppliers()
               }}
             >
-              Previous
+              ← Previous
+            </Button>
+            <Button
+              variant="ghost"
+              disabled={pagination.page >= pagination.totalPages}
+              onClick={() => {
+                setPagination(prev => ({ ...prev, page: prev.page + 1 }))
+              }}
+            >
+              Next →
             </Button>
             
             <span className="text-gray-600">
@@ -348,7 +357,7 @@ export default function SuppliersPage() {
             </span>
             
             <Button
-              variant="outline"
+              variant="ghost"
               disabled={pagination.page >= pagination.totalPages}
               onClick={() => {
                 setPagination(prev => ({ ...prev, page: prev.page + 1 }))
@@ -369,7 +378,7 @@ export default function SuppliersPage() {
                   {editingSupplier ? '✏️ Edit Supplier' : '➕ New Supplier'}
                 </h2>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   onClick={() => {
                     setShowCreateForm(false)
                     setEditingSupplier(null)
@@ -395,7 +404,6 @@ export default function SuppliersPage() {
                     Name *
                   </label>
                   <Input
-                    name="name"
                     type="text"
                     required
                     defaultValue={editingSupplier?.name || ''}
@@ -441,7 +449,7 @@ export default function SuppliersPage() {
                 <div className="flex justify-end gap-2 pt-4 border-t">
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     onClick={() => {
                       setShowCreateForm(false)
                       setEditingSupplier(null)

@@ -6,7 +6,7 @@ import { z } from 'zod'
 
 export const TenantSchema = z.object({
   id: z.string().uuid(),
-  name: z.string().min(1, 'Tenant name is required').max(100, 'Tenant name too long (max 100)'),
+  name: z.string().min(3, 'Business name is required (min 3 characters)').max(100, 'Business name too long (max 100)'),
   subdomain: z.string().min(1, 'Subdomain is required').max(50, 'Subdomain too long (max 50)').regex(/^[a-z0-9-]+$/, 'Subdomain must contain only lowercase letters, numbers, and hyphens'),
   active: z.boolean().default(true),
   created_at: z.string().datetime(),
@@ -17,9 +17,7 @@ export const UserSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email('Invalid email format'),
   tenant_id: z.string().uuid('Invalid tenant ID'),
-  role: z.enum(['super_admin', 'admin', 'vendedor', 'contador'], {
-    errorMap: (issue) => ({ message: `Invalid role: ${issue.received}` })
-  }),
+  role: z.enum(['super_admin', 'admin', 'vendedor', 'contador']),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime()
 })
@@ -85,6 +83,7 @@ export const LedgerEntrySchema = z.object({
 // =============================================================================
 
 export const CreateTenantSchema = TenantSchema.omit({ id: true, created_at: true, updated_at: true }).extend({
+  name: z.string().min(3, 'Business name is required (min 3 characters)').max(100, 'Business name too long (max 100)'),
   subdomain: z.string().min(1).max(50).regex(/^[a-z0-9-]+$/).refine(
     (val) => !['api', 'admin', 'www', 'mail', 'ftp', 'cdn'].includes(val),
     'Subdomain is reserved'
@@ -100,26 +99,13 @@ export const CreateUserSchema = UserSchema.omit({ id: true, created_at: true, up
 export const UpdateUserSchema = UserSchema.omit({ id: true, created_at: true, tenant_id: true }).partial()
 
 export const CreateProductSchema = ProductSchema.omit({ id: true, created_at: true, updated_at: true }).extend({
-  sku: z.string().min(1).max(50).refine(
-    async (val, ctx) => {
-      // Aquí podríamos verificar unicidad de SKU en el tenant
-      return true // Por ahora solo validación de formato
-    },
-    { message: 'SKU must be unique within tenant' }
-  )
+  sku: z.string().min(1).max(50)
 })
 
 export const UpdateProductSchema = ProductSchema.omit({ id: true, created_at: true, tenant_id: true }).partial()
 
 export const CreateCustomerSchema = CustomerSchema.omit({ id: true, created_at: true, updated_at: true }).extend({
-  email: z.string().email().optional().refine(
-    async (val, ctx) => {
-      if (!val) return true // Email opcional
-      // Verificación de unicidad de email si es necesario
-      return true
-    },
-    { message: 'Email already exists in this tenant' }
-  )
+  email: z.string().email().optional()
 })
 
 export const UpdateCustomerSchema = CustomerSchema.omit({ id: true, created_at: true, tenant_id: true }).partial()
@@ -129,26 +115,11 @@ export const UpdateSupplierSchema = SupplierSchema.omit({ id: true, created_at: 
 
 export const CreateInventoryMovementSchema = InventoryMovementSchema.omit({ id: true, created_at: true, tenant_id: true }).extend({
   type: z.enum(['in', 'out', 'adjustment']),
-  quantity: z.number().positive('Quantity must be greater than 0').refine(
-    async (val, ctx) => {
-      if (ctx.data?.type === 'out') {
-        // Aquí verificaríamos stock disponible
-        return true
-      }
-      return true
-    },
-    { message: 'Insufficient stock for this movement' }
-  )
+  quantity: z.number().positive('Quantity must be greater than 0')
 })
 
 export const CreateLedgerEntrySchema = LedgerEntrySchema.omit({ id: true, created_at: true, tenant_id: true }).extend({
-  amount: z.number().min(0.01, 'Amount must be greater than 0').refine(
-    async (val, ctx) => {
-      // Validación de límites si es necesario
-      return true
-    },
-    { message: 'Amount exceeds allowed limits' }
-  )
+  amount: z.number().min(0.01, 'Amount must be greater than 0')
 })
 
 export const UpdateLedgerEntrySchema = LedgerEntrySchema.omit({ id: true, created_at: true, tenant_id: true }).partial()
@@ -175,6 +146,61 @@ export const PaymentSchema = z.object({
   description: z.string().max(500, 'Description too long (max 500)').optional(),
   payment_method: z.enum(['cash', 'transfer', 'check', 'card']).default('cash'),
   reference_number: z.string().max(100, 'Reference number too long (max 100)').optional()
+})
+
+// =============================================================================
+// AUTHENTICATION SCHEMAS
+// =============================================================================
+
+export const LoginSchema = z.object({
+  email: z.string()
+    .min(1, 'Email is required')
+    .email('Invalid email format'),
+  password: z.string()
+    .min(1, 'Password is required')
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password too long (max 128 characters)'),
+  remember_me: z.boolean().default(false)
+})
+
+export const RegisterSchema = z.object({
+  name: z.string()
+    .min(3, 'Business name is required (min 3 characters)')
+    .max(100, 'Business name too long (max 100 characters)'),
+  email: z.string()
+    .min(1, 'Email is required')
+    .email('Invalid email format'),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password too long (max 128 characters)')
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Password must contain at least one uppercase letter, one lowercase letter, and one number'),
+  confirm_password: z.string(),
+  tenant_subdomain: z.string()
+    .min(1, 'Tenant subdomain is required')
+    .min(3, 'Subdomain must be at least 3 characters')
+    .max(50, 'Subdomain too long (max 50 characters)')
+    .regex(/^[a-z0-9-]+$/, 'Subdomain must contain only lowercase letters, numbers, and hyphens')
+}).refine((data) => data.password === data.confirm_password, {
+  message: "Passwords don't match",
+  path: ["confirm_password"]
+})
+
+export const ForgotPasswordSchema = z.object({
+  email: z.string()
+    .min(1, 'Email is required')
+    .email('Invalid email format')
+})
+
+export const ResetPasswordSchema = z.object({
+  token: z.string().min(1, 'Reset token is required'),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password too long (max 128 characters)')
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Password must contain at least one uppercase letter, one lowercase letter, and one number'),
+  confirm_password: z.string()
+}).refine((data) => data.password === data.confirm_password, {
+  message: "Passwords don't match",
+  path: ["confirm_password"]
 })
 
 // =============================================================================
@@ -219,6 +245,16 @@ export const LedgerQuerySchema = z.object({
   max_amount: z.number().min(0).optional(),
   page: z.number().min(1).default(1),
   limit: z.number().min(1).max(100).default(50)
+})
+
+// =============================================================================
+// BUSINESS RESPONSE SCHEMAS - Para operaciones específicas del dominio
+// =============================================================================
+
+export const RegistrationSummarySchema = z.object({
+  tenant: TenantSchema.nullable(),
+  userCount: z.number().min(0).default(0),
+  canAccess: z.boolean().default(false)
 })
 
 // =============================================================================
@@ -272,12 +308,19 @@ export type CreateLedgerEntry = z.infer<typeof CreateLedgerEntrySchema>
 export type SaleTransaction = z.infer<typeof SaleTransactionSchema>
 export type Payment = z.infer<typeof PaymentSchema>
 
+export type Login = z.infer<typeof LoginSchema>
+export type Register = z.infer<typeof RegisterSchema>
+export type ForgotPassword = z.infer<typeof ForgotPasswordSchema>
+export type ResetPassword = z.infer<typeof ResetPasswordSchema>
+
 export type ProductQuery = z.infer<typeof ProductQuerySchema>
 export type CustomerQuery = z.infer<typeof CustomerQuerySchema>
 export type SupplierQuery = z.infer<typeof SupplierQuerySchema>
 export type LedgerQuery = z.infer<typeof LedgerQuerySchema>
 
-export type ApiResponse<T = any> = z.infer<typeof ApiResponseSchema> & {
+export type RegistrationSummary = z.infer<typeof RegistrationSummarySchema>
+
+export type ApiResponse<T> = z.infer<typeof ApiResponseSchema> & {
   data?: T
 }
 export type PaginationMeta = z.infer<typeof PaginationMetaSchema>

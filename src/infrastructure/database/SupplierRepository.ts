@@ -22,7 +22,7 @@ export class SupplierRepository implements ISupplierRepository {
   /**
    * Crear nuevo proveedor con validación completa
    */
-  async create(supplierData: CreateSupplier): Promise<ApiResponse<Supplier>> {
+  async create(supplierData: CreateSupplier): Promise<ApiResponse<any>> {
     try {
       // Validar esquema con Zod
       const validatedData = CreateSupplierSchema.parse(supplierData)
@@ -35,7 +35,7 @@ export class SupplierRepository implements ISupplierRepository {
           email: validatedData.email || null,
           phone: validatedData.phone || null,
           address: validatedData.address || null
-        })
+        } as any)
         .select()
         .single()
 
@@ -55,12 +55,12 @@ export class SupplierRepository implements ISupplierRepository {
       }
     } catch (error) {
       console.error('Supplier validation error:', error)
-        return {
-          success: false,
-          message: error instanceof Error ? error.message : 'Validation error',
-          error: 'SUPPLIER_VALIDATION_ERROR',
-          details: error instanceof Error ? error.message : null
-        }
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Validation error',
+        error: 'SUPPLIER_VALIDATION_ERROR',
+        data: error instanceof Error ? error.message : null
+      }
     }
   }
 
@@ -107,8 +107,11 @@ export class SupplierRepository implements ISupplierRepository {
    */
   async findByTenantId(
     tenantId: string, 
-    query: SupplierQuery = {}
-  ): Promise<ApiResponse<PaginatedResponse<Supplier>>> {
+    query: SupplierQuery = {
+      page: 1,
+      limit: 20
+    }
+  ): Promise<ApiResponse<any>> {
     try {
       // Validar parámetros de query
       const validatedQuery = SupplierQuerySchema.parse(query)
@@ -183,19 +186,19 @@ export class SupplierRepository implements ISupplierRepository {
       }
     } catch (error) {
       console.error('Supplier query validation error:', error)
-        return {
-          success: false,
-          message: error instanceof Error ? error.message : 'Query validation error',
-          error: 'SUPPLIER_QUERY_ERROR',
-          details: error instanceof Error ? error.message : null
-        }
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Query validation error',
+        error: 'SUPPLIER_QUERY_ERROR',
+        data: error instanceof Error ? error.message : null
+      }
     }
   }
 
   /**
    * Actualizar proveedor con validación y business rules
    */
-  async update(id: string, tenantId: string, updateData: UpdateSupplier): Promise<ApiResponse<Supplier>> {
+  async update(id: string, tenantId: string, updateData: UpdateSupplier): Promise<ApiResponse<any>> {
     try {
       // Validar datos de actualización
       const validatedData = UpdateSupplierSchema.parse(updateData)
@@ -222,15 +225,15 @@ export class SupplierRepository implements ISupplierRepository {
         }
       }
 
-      const { data, error } = await this.supabase
-        .from('suppliers')
+      const { data, error } = await (this.supabase
+        .from('suppliers') as any)
         .update({
           name: validatedData.name,
           email: validatedData.email || null,
           phone: validatedData.phone || null,
           address: validatedData.address || null,
           updated_at: new Date().toISOString()
-        })
+        } as any)
         .eq('id', id)
         .eq('tenant_id', tenantId)
         .select()
@@ -252,12 +255,12 @@ export class SupplierRepository implements ISupplierRepository {
       }
     } catch (error) {
       console.error('Supplier update validation error:', error)
-        return {
-          success: false,
-          message: error instanceof Error ? error.message : 'Validation error',
-          error: 'SUPPLIER_UPDATE_VALIDATION_ERROR',
-          details: error instanceof Error ? error.message : null
-        }
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Validation error',
+        error: 'SUPPLIER_UPDATE_VALIDATION_ERROR',
+        data: error instanceof Error ? error.message : null
+      }
     }
   }
 
@@ -307,12 +310,11 @@ export class SupplierRepository implements ISupplierRepository {
       }
     } catch (error) {
       console.error('Supplier delete error:', error)
-        return {
-          success: false,
-          message: error instanceof Error ? error.message : 'Delete validation error',
-          error: 'SUPPLIER_DELETE_VALIDATION_ERROR',
-          details: error instanceof Error ? error.message : null
-        }
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Delete validation error',
+        error: 'SUPPLIER_DELETE_VALIDATION_ERROR'
+      }
     }
   }
 
@@ -339,10 +341,10 @@ export class SupplierRepository implements ISupplierRepository {
   private async getSupplierBalance(supplierId: string, tenantId: string): Promise<number> {
     try {
       const { data, error } = await this.supabase
-        .rpc('get_supplier_balance', {
+        .rpc('get_supplier_balance' as any, {
           p_supplier_uuid: supplierId,
           p_tenant_uuid: tenantId
-        })
+        } as any)
 
       if (error) {
         console.error('Balance calculation error:', error)
@@ -436,7 +438,7 @@ export class SupplierRepository implements ISupplierRepository {
         return null
       }
 
-      return data.created_at
+      return (data as any)?.created_at
     } catch (error) {
       console.error('Last payment date error:', error)
       return null

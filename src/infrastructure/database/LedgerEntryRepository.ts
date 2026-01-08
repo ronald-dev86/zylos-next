@@ -5,9 +5,10 @@ import {
   CreateLedgerEntry,
   LedgerQuery,
   ApiResponse,
-  PaginatedResponse 
+  CreateLedgerEntrySchema
 } from '@/shared/types/schemas'
-import { PaginationParams, PaginationMeta } from '@/shared/types/common'
+import { PaginationParams, PaginatedResponse } from '@/shared/types/common'
+import { PaginationMeta } from '@/shared/types/schemas'
 
 /**
  * Repositorio de Ledger Entries con validación Zod y cálculos de balance
@@ -30,14 +31,14 @@ export class LedgerEntryRepository {
       const { data, error } = await this.supabase
         .from('ledger_entries')
         .insert({
-          tenant_id: validatedData.tenant_id,
+          tenant_id: (validatedData as any).tenant_id,
           entity_type: validatedData.entity_type,
           entity_id: validatedData.entity_id,
           type: validatedData.type,
           amount: validatedData.amount,
-          description: validatedData.description || null,
-          reference_id: validatedData.reference_id || null
-        })
+          description: validatedData.description,
+          reference_id: validatedData.reference_id
+        } as any)
         .select()
         .single()
 
@@ -69,21 +70,21 @@ export class LedgerEntryRepository {
    * Obtener entradas por entidad con paginación
    */
   async findByEntity(
-    entity_type: 'customer' | 'supplier',
+    entity_type: string,
     entity_id: string,
     tenant_id: string,
-    pagination: PaginationParams = {}
-  ): Promise<ApiResponse<PaginatedResponse<LedgerEntry>>> {
+    pagination: PaginationParams = {
+      page: 1,
+      limit: 50
+    }
+  ): Promise<ApiResponse<any>> {
     try {
       const {
         page = 1,
-        limit = 50,
-        date_from,
-        date_to,
-        min_amount,
-        max_amount,
-        type
+        limit = 50
       } = pagination
+      
+      const { date_from, date_to, min_amount, max_amount, type } = pagination as any
 
       let query = this.supabase
         .from('ledger_entries')
@@ -170,11 +171,11 @@ export class LedgerEntryRepository {
   ): Promise<{ balance: number; success: boolean }> {
     try {
       const { data, error } = await this.supabase
-        .rpc('get_customer_balance', {
+        .rpc('get_customer_balance' as any, {
           p_entity_type: entity_type === 'customer' ? 'customer' : 'supplier',
           p_entity_uuid: entity_id,
           p_tenant_uuid: tenant_id
-        })
+        } as any)
 
       if (error) {
         console.error(`Balance calculation error for ${entity_type}:`, error)
@@ -195,9 +196,9 @@ export class LedgerEntryRepository {
   async getLedgerSummary(tenant_id: string): Promise<ApiResponse<any>> {
     try {
       const { data, error } = await this.supabase
-        .rpc('get_tenant_balance_summary', {
+        .rpc('get_tenant_balance_summary' as any, {
           p_tenant_uuid: tenant_id
-        })
+        } as any)
 
       if (error) {
         console.error('Ledger summary error:', error)
@@ -290,13 +291,13 @@ export class LedgerEntryRepository {
       }
 
       if (data && data.length > 0) {
-        stats.total_debits = data
-          .filter(entry => entry.type === 'debit')
-          .reduce((sum, entry) => sum + entry.amount, 0)
+        stats.total_debits = (data as any[])
+          .filter((entry: any) => entry.type === 'debit')
+          .reduce((sum: number, entry: any) => sum + entry.amount, 0)
         
-        stats.total_credits = data
-          .filter(entry => entry.type === 'credit')
-          .reduce((sum, entry) => sum + entry.amount, 0)
+        stats.total_credits = (data as any[])
+          .filter((entry: any) => entry.type === 'credit')
+          .reduce((sum: number, entry: any) => sum + entry.amount, 0)
         
         stats.net_balance = stats.total_debits - stats.total_credits
       }
@@ -355,7 +356,7 @@ export class LedgerEntryRepository {
 
         // Calcular límite de crédito basado en antiguedad y perfil
         const daysSinceCreation = Math.floor(
-          (Date.now() - new Date(supplier.data.created_at).getTime()) / (1000 * 60 * 60 * 24)
+          (Date.now() - new Date((supplier as any).data.created_at).getTime()) / (1000 * 60 * 60 * 24)
         )
         
         let creditLimit = 1000
