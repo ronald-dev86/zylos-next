@@ -1,19 +1,20 @@
 import { ITenantRepository } from '@/core/services/ITenantRepository'
 import { Tenant } from '@/core/entities/Tenant'
-import { createClient } from '@supabase/supabase-js'
+import { BaseService } from './BaseService'
 import { Database } from '@/shared/types/database'
 
-export class SupabaseTenantRepository implements ITenantRepository {
-  private supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+export class SupabaseTenantRepository extends BaseService implements ITenantRepository {
+  constructor() {
+    super() // Tenant operations don't require tenant context
+  }
 
-  async create(tenant: {
+async create(tenant: {
     name: string
     subdomain: string
   }): Promise<Tenant> {
-    const { data, error } = await this.supabase
+    const adminClient = SupabaseTenantRepository.createAdminClient()
+    
+    const { data, error } = await adminClient
       .from('tenants')
       .insert([{
         name: tenant.name,
