@@ -1,5 +1,5 @@
 {
-  "name": "zylos",
+  "name": "@zylos/platform",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,7 +11,7 @@
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.89.0",
-    "@zylos/shared-types": "workspace:*",
+    "@zylos/shared-types": "file:../../packages/shared-types",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.562.0",

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClientForComponent } from '@/lib/supabase'
+import { createClientForRoute } from '@/lib/supabase'
 
 // GET - Get current tenant info and user context
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClientForComponent()
+    const supabase = createClientForRoute()
     
     // Get current user from auth
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
 // POST - Refresh tenant context (useful after tenant switching)
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClientForComponent()
+    const supabase = createClientForRoute()
     
     // Get current user to ensure they're authenticated
     const { data: { user }, error: authError } = await supabase.auth.getUser()

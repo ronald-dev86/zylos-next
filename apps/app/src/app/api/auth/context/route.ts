@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClientForComponent } from '@/lib/supabase'
+import { createAuthenticatedClient } from '@/lib/supabase'
 
 // GET - Get current tenant info and user context
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClientForComponent()
+    const supabase = createAuthenticatedClient(request)
     
     // Get current user from auth
     const { data: { user }, error: authError } = await supabase.auth.getUser()

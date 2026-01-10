@@ -1,0 +1,31 @@
+
+> @zylos/platform@0.1.0 build
+> next build
+
+▲ Next.js 16.1.1 (Turbopack)
+- Environments: .env.local, .env
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 12.9s
+  Running TypeScript ...
+Failed to compile.
+
+./src/app/api/auth/login/route.ts:66:28
+Type error: Property 'active' does not exist on type '{ id: any; name: any; subdomain: any; active: any; }[]'.
+
+[0m [90m 64 |[39m
+ [90m 65 |[39m     [90m// Check if tenant is active[39m
+[31m[1m>[22m[39m[90m 66 |[39m     [36mif[39m ([33m![39muserInfo[33m.[39mtenants[33m?[39m[33m.[39mactive) {
+ [90m    |[39m                            [31m[1m^[22m[39m
+ [90m 67 |[39m       [36mreturn[39m [33mNextResponse[39m[33m.[39mjson(
+ [90m 68 |[39m         { 
+ [90m 69 |[39m           success[33m:[39m [36mfalse[39m[33m,[39m [0m
+Next.js build worker exited with code: 1 and signal: null
+npm error Lifecycle script `build` failed with error:
+npm error code 1
+npm error path C:\Users\USUARIO\OneDrive\Documentos\Projects\zylos\apps\platform
+npm error workspace @zylos/platform@0.1.0
+npm error location C:\Users\USUARIO\OneDrive\Documentos\Projects\zylos\apps\platform
+npm error command failed
+npm error command C:\Windows\system32\cmd.exe /d /s /c next build
