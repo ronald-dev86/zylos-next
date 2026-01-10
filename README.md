@@ -1,36 +1,38 @@
 # Zylos ERP/POS Multi-tenant
 
-## Architecture Overview
+## 🏗️ Monorepo Architecture
 
-Zylos is a multi-tenant ERP/POS system built with Next.js 15 and Supabase, designed for massive scalability and efficient operational costs.
+Zylos es un sistema ERP/POS multi-tenant implementado como monorepo para separar la gestión de tenants del negocio principal.
 
-### Key Architecture Principles
+### 📁 Estructura
 
-- **Multi-tenancy**: Logical isolation via subdomains (tenant.zylos.com)
-- **Security**: Mandatory Row Level Security (RLS) in PostgreSQL
-- **Data Integrity**: Immutable ledger model for financial tracking
-- **Clean Architecture**: Clear separation between domain, application, and infrastructure layers
-- **Type Safety**: TypeScript strict mode with comprehensive Zod validation
+```
+zylos/
+├── apps/
+│   ├── platform/     # platform.zylos.com (landing + auth + tenant management)
+│   └── app/         # *.zylos.com (ERP core)
+├── packages/
+│   ├── shared-types/    # Tipos TypeScript compartidos
+│   ├── ui-components/   # Componentes UI compartidos
+│   └── utils/           # Utilidades compartidas
+├── tools/
+└── docs/
+```
 
-### Tech Stack
+### 🚀 Technology Stack
 
-- **Frontend**: Next.js 15+ (App Router), TypeScript (Strict Mode)
-- **Backend/DB**: Supabase (PostgreSQL), Edge Functions
-- **Validation**: Zod schemas for all data contracts
+- **Framework**: Next.js 16+ (App Router), TypeScript (Strict Mode)
+- **Database**: Supabase (PostgreSQL) con Row Level Security
+- **Validation**: Zod schemas para todos los contratos de datos
 - **UI**: Tailwind CSS + Shadcn/UI
+- **Monorepo**: Turborepo + npm workspaces
 
-## Project Structure
+### 🔐 Key Architecture Principles
 
-```
-/zylos-erp
-├── /supabase            # Migrations and Seed (DB source of truth)
-├── /src
-│   ├── /app             # Dynamic routes by subdomain
-│   ├── /core            # Business logic (Zylos use cases)
-│   ├── /infrastructure  # API clients, Supabase, external services
-│   └── /shared          # Common UI components and utilities
-└── README.md
-```
+- **Multi-tenancy**: Aislamiento vía subdominios (tenant.zylos.com)
+- **Security**: Row Level Security (RLS) obligatorio en PostgreSQL
+- **Clean Architecture**: Separación clara entre dominio, aplicación e infraestructura
+- **Zero Hardcoding**: Todo contexto de tenant dinámico
 
 ## Getting Started
 
