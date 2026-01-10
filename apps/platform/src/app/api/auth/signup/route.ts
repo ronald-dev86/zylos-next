@@ -94,6 +94,9 @@ export async function POST(request: NextRequest) {
     console.log('User record will be created by trigger');
     console.log('=====================================');
 
+    // Redirect to new tenant
+    const redirectUrl = `https://${newTenant.subdomain}.zylos.com/dashboard?token=${sessionData.session.access_token}`;
+    
     return NextResponse.json({
       success: true,
       data: {
@@ -104,16 +107,9 @@ export async function POST(request: NextRequest) {
           name: ownerName,
           role: 'admin',
           tenant_id: newTenant.id,
-          // Note: Full user record pending trigger completion
-          pending_user_creation: true
         },
-        auth: {
-          token: sessionData.session.access_token,
-          refreshToken: sessionData.session.refresh_token,
-          expiresAt: sessionData.session.expires_at ? new Date(sessionData.session.expires_at).toISOString() : null,
-          type: 'Bearer'
-        },
-        message: 'Tienda creada exitosamente. Configuración completando en background...'
+        redirectUrl,
+        message: 'Tienda creada exitosamente'
       }
     });
 

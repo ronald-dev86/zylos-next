@@ -90,13 +90,15 @@ export async function POST(request: NextRequest) {
     console.log('Role:', userInfo.role);
     console.log('===================');
 
+    // For platform login, redirect to tenant subdomain
+    const redirectUrl = `https://${userInfo.tenants.subdomain}.zylos.com/dashboard?token=${authData.session.access_token}`;
+    
     return NextResponse.json({
       success: true,
       data: {
         user: {
           id: authData.user.id,
           email: authData.user.email,
-          name: authData.user.user_metadata?.name || authData.user.email,
           role: userInfo.role,
         },
         tenant: {
@@ -104,14 +106,7 @@ export async function POST(request: NextRequest) {
           name: userInfo.tenants.name,
           subdomain: userInfo.tenants.subdomain,
         },
-        auth: {
-          token: authData.session.access_token,
-          refreshToken: authData.session.refresh_token,
-          expiresAt: authData.session.expires_at 
-            ? new Date(authData.session.expires_at).toISOString() 
-            : null,
-          type: 'Bearer',
-        },
+        redirectUrl,
         message: 'Inicio de sesión exitoso'
       }
     });

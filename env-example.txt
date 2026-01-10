@@ -1,5 +1,0 @@
-# Add this to your .env.local file
-NEXT_PUBLIC_BASE_URL=http://localhost:3000
-
-# For production
-# NEXT_PUBLIC_BASE_URL=https://your-domain.com
