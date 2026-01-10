@@ -117,13 +117,38 @@ npm run typecheck
 npm run lint
 ```
 
-## Deployment
+## 🚀 Development
 
-This MVP is designed for Vercel + Supabase deployment:
+```bash
+# Install dependencies
+npm install
 
-1. Connect your Vercel project to the repository
-2. Configure environment variables in Vercel
-3. Deploy with automatic CI/CD
+# Start both projects in dev mode
+npm run dev
+
+# Build todos los proyectos
+npm run build
+
+# Lint + Type check
+npm run lint
+npm run type-check
+```
+
+## 🌐 Vercel Deployment
+
+Ver [Deployment Guide](docs/VERCEL_DEPLOYMENT.md) para configuración completa en Vercel.
+
+### Quick Start:
+```bash
+# 1. Conectar repo a Vercel
+# 2. Configurar DNS: *.zylos.com → CNAME vercel-dns.com
+# 3. Setear environment variables
+# 4. Deploy!
+```
+
+**Projects:**
+- `platform.zylos.com` → Landing + Auth + Tenant Creation
+- `*.zylos.com` → ERP Core (tenant isolation)
 
 ## License
 

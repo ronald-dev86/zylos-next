@@ -1,0 +1,11 @@
+{
+  "buildCommand": "cd apps/platform && npm run build",
+  "outputDirectory": "apps/platform/.next",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "functions": {
+    "apps/platform/src/app/api/**/*.ts": {
+      "runtime": "nodejs20.x"
+    }
+  }
+}

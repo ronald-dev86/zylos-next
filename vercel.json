@@ -1,0 +1,26 @@
+{
+  "projects": [
+    {
+      "name": "zylos-platform",
+      "root": "apps/platform",
+      "framework": "nextjs",
+      "buildCommand": "cd apps/platform && npm run build",
+      "outputDirectory": "apps/platform/.next",
+      "installCommand": "npm install",
+      "domains": [
+        "platform.zylos.com"
+      ]
+    },
+    {
+      "name": "zylos-app",
+      "root": "apps/app",
+      "framework": "nextjs",
+      "buildCommand": "cd apps/app && npm run build",
+      "outputDirectory": "apps/app/.next",
+      "installCommand": "npm install",
+      "domains": [
+        "*.zylos.com"
+      ]
+    }
+  ]
+}
