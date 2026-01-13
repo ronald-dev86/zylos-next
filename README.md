@@ -1,155 +1,45 @@
-# Zylos ERP/POS Multi-tenant
+# Zylos Platform
 
-## 🏗️ Monorepo Architecture
+Multi-tenant ERP/POS platform core system.
 
-Zylos es un sistema ERP/POS multi-tenant implementado como monorepo para separar la gestión de tenants del negocio principal.
+## Purpose
 
-### 📁 Estructura
+Handles:
+- Tenant-specific ERP operations
+- Business logic (inventory, sales, financial)
+- Multi-tenant user management
+- Real-time operations
 
-```
-zylos/
-├── apps/
-│   ├── platform/     # platform.zylos.com (landing + auth + tenant management)
-│   └── app/         # *.zylos.com (ERP core)
-├── packages/
-│   ├── shared-types/    # Tipos TypeScript compartidos
-│   ├── ui-components/   # Componentes UI compartidos
-│   └── utils/           # Utilidades compartidas
-├── tools/
-└── docs/
-```
+## Tech Stack
 
-### 🚀 Technology Stack
-
-- **Framework**: Next.js 16+ (App Router), TypeScript (Strict Mode)
-- **Database**: Supabase (PostgreSQL) con Row Level Security
-- **Validation**: Zod schemas para todos los contratos de datos
+- **Framework**: Next.js 16+ (App Router)
+- **Database**: Supabase (PostgreSQL) with RLS
+- **Auth**: Supabase Auth with tenant isolation
 - **UI**: Tailwind CSS + Shadcn/UI
-- **Monorepo**: Turborepo + npm workspaces
+- **Validation**: Zod
+- **Types**: @zylos/shared-types (NPM package)
 
-### 🔐 Key Architecture Principles
+## Architecture
 
-- **Multi-tenancy**: Aislamiento vía subdominios (tenant.zylos.com)
-- **Security**: Row Level Security (RLS) obligatorio en PostgreSQL
-- **Clean Architecture**: Separación clara entre dominio, aplicación e infraestructura
-- **Zero Hardcoding**: Todo contexto de tenant dinámico
+- **Multi-tenancy**: Subdomain-based isolation (*.zylos.com)
+- **Security**: Row Level Security (RLS) enforced
+- **Clean Architecture**: Domain → Application → Infrastructure
+- **Atomic Operations**: Database functions for critical processes
 
 ## Getting Started
 
-1. **Clone and install dependencies**
-   ```bash
-   git clone <repository>
-   cd zylos
-   npm install
-   ```
-
-2. **Environment setup**
-   ```bash
-   cp .env.example .env.local
-   # Configure your Supabase credentials
-   ```
-
-3. **Database setup**
-   ```bash
-   # Apply migrations to your Supabase project
-   supabase db push
-   # Seed initial data
-   supabase db seed
-   ```
-
-4. **Start development server**
-   ```bash
-   npm run dev
-   ```
-
-## Database Design
-
-### Core Tables
-
-- **tenants**: Multi-tenant isolation
-- **users**: User management with RBAC
-- **products**: Product catalog
-- **inventory_movements**: Immutable stock tracking
-- **customers/suppliers**: Contact management
-- **ledger_entries**: Financial ledger (immutable)
-
-### Security
-
-- All tables use Row Level Security (RLS)
-- JWT-based tenant isolation
-- Role-based access control: super_admin, admin, vendedor, contador
-
-## Development Workflow
-
-### Core Principles
-
-1. **Zero Hardcoding**: All tenant context must be dynamic
-2. **Atomic Operations**: Critical processes use database functions for transactionality
-3. **Clean Architecture**: Maintain clear layer separation
-
-### Adding Features
-
-1. Define domain entities in `/src/core/domain/`
-2. Create use cases in `/src/core/use-cases/`
-3. Implement infrastructure adapters in `/src/infrastructure/`
-4. Build UI components in `/src/shared/components/`
-
-## Business Logic Functions
-
-The system includes PostgreSQL functions for critical operations:
-
-- `calculate_stock()`: Real-time inventory calculation
-- `record_inventory_movement()`: Transactional stock management
-- `create_sale_transaction()`: Complete sales processing
-- `get_customer_balance()` / `get_supplier_balance()`: Financial balances
-- `record_payment()`: Payment processing
-
-## Testing
-
 ```bash
-# Run tests
-npm test
-
-# Type checking
-npm run typecheck
-
-# Linting
-npm run lint
-```
-
-## 🚀 Development
-
-```bash
-# Install dependencies
 npm install
-
-# Start both projects in dev mode
 npm run dev
-
-# Build todos los proyectos
-npm run build
-
-# Lint + Type check
-npm run lint
-npm run type-check
 ```
 
-## 🌐 Vercel Deployment
+## Environment
 
-Ver [Deployment Guide](docs/VERCEL_DEPLOYMENT.md) para configuración completa en Vercel.
+Configure:
+- Supabase URL and keys
+- Tenant domain routing
+- Database connection
 
-### Quick Start:
-```bash
-# 1. Conectar repo a Vercel
-# 2. Configurar DNS: *.zylos.com → CNAME vercel-dns.com
-# 3. Setear environment variables
-# 4. Deploy!
-```
+## Deployment
 
-**Projects:**
-- `platform.zylos.com` → Landing + Auth + Tenant Creation
-- `*.zylos.com` → ERP Core (tenant isolation)
-
-## License
-
-[Your License Here]
+Deployed to Vercel with wildcard subdomains: `*.zylos.com`
