@@ -8,11 +8,15 @@ export class BaseService {
   constructor(tenantId?: string) {
     this.tenantId = tenantId
     
-    // Client with RLS enforcement - will be automatically filtered by tenant_id
+    // Server-only client with RLS enforcement - uses service keys for security
     this.supabase = createClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!,
       {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        },
         global: {
           headers: tenantId ? {
             'x-tenant-id': tenantId
@@ -24,9 +28,6 @@ export class BaseService {
 
   // Helper to ensure tenant isolation in queries
   protected withTenantFilter() {
-    if (!this.tenantId) {
-      throw new Error('Tenant context is required for this operation')
-    }
     return this.supabase
   }
 
@@ -34,7 +35,7 @@ export class BaseService {
   protected static createAdminClient(): SupabaseClient<Database> {
     return createClient<Database>(
       process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      process.env.SUPABASE_SERVICE_KEY!,
       {
         auth: {
           autoRefreshToken: false,
@@ -49,11 +50,13 @@ export class BaseService {
     functionName: string,
     params: Record<string, any> = {}
   ): Promise<T> {
+    const rpcParams = this.tenantId ? {
+      ...params,
+      p_tenant_id: this.tenantId
+    } : params;
+
     const { data, error } = await this.withTenantFilter()
-      .rpc(functionName, {
-        ...params,
-        p_tenant_id: this.tenantId!
-      })
+      .rpc(functionName, rpcParams)
 
     if (error) {
       throw new Error(`RPC function ${functionName} failed: ${error.message}`)

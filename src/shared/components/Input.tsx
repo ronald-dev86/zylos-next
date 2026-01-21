@@ -10,6 +10,9 @@ interface InputProps {
   error?: string
   label?: string
   className?: string
+  id?: string
+  name?: string
+  autoComplete?: string
 }
 
 export function Input({
@@ -21,7 +24,10 @@ export function Input({
   required = false,
   error,
   label,
-  className = ''
+  className = '',
+  id,
+  name,
+  autoComplete
 }: InputProps) {
   const baseClasses = `
     w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
@@ -40,12 +46,15 @@ export function Input({
         </label>
       )}
       <input
+        id={id}
+        name={name}
         type={type}
         placeholder={placeholder}
         value={value}
         onChange={onChange}
         disabled={disabled}
         required={required}
+        autoComplete={autoComplete}
         className={`${baseClasses} ${errorClasses} ${className}`}
         style={{ WebkitAppearance: 'none' }}
       />

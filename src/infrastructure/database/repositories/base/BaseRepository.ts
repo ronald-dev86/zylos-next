@@ -1,7 +1,7 @@
 // BaseRepository - Common repository pattern to eliminate code duplication
 // Provides centralized pagination, tenant filtering, and error handling
 
-import { BaseService } from './BaseService'
+import { BaseService } from '../client/BaseService'
 import { PaginationParams, PaginatedResponse, ApiResponse } from '@/shared/types/common'
 
 export abstract class BaseRepository<T> extends BaseService {

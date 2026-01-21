@@ -4,7 +4,7 @@
 // Repository Interfaces
 import { ICustomerRepository } from '@/core/services/ICustomerRepository'
 import { IProductRepository } from '@/core/services/IProductRepository'
-import { ISaleRepository } from '@/infrastructure/database/SupabaseSaleRepository'
+import { ISaleRepository } from '@/core/services/ISaleRepository'
 import { IInventoryMovementRepository } from '@/core/services/IInventoryMovementRepository'
 import { ILedgerEntryRepository } from '@/core/services/ILedgerEntryRepository'
 import { ISupplierRepository } from '@/core/services/ISupplierRepository'
@@ -12,14 +12,14 @@ import { ITenantRepository } from '@/core/services/ITenantRepository'
 import { IUserRepository } from '@/core/services/IUserRepository'
 
 // Repository Implementations
-import { SupabaseCustomerRepository } from '@/infrastructure/database/SupabaseCustomerRepository'
-import { SupabaseProductRepository } from '@/infrastructure/database/SupabaseProductRepository'
-import { SupabaseSaleRepository } from '@/infrastructure/database/SupabaseSaleRepository'
-import { SupabaseInventoryMovementRepository } from '@/infrastructure/database/SupabaseInventoryMovementRepository'
-import { SupabaseLedgerEntryRepository } from '@/infrastructure/database/SupabaseLedgerEntryRepository'
-import { SupabaseSupplierRepository } from '@/infrastructure/database/SupabaseSupplierRepository'
-import { SupabaseTenantRepository } from '@/infrastructure/database/SupabaseTenantRepository'
-import { SupabaseUserRepository } from '@/infrastructure/database/SupabaseUserRepository'
+import { SupabaseCustomerRepository } from '@/infrastructure/database/repositories/implementations/SupabaseCustomerRepository'
+import { SupabaseProductRepository } from '@/infrastructure/database/repositories/implementations/SupabaseProductRepository'
+import { SupabaseSaleRepository } from '@/infrastructure/database/repositories/implementations/SupabaseSaleRepository'
+import { SupabaseInventoryMovementRepository } from '@/infrastructure/database/repositories/implementations/SupabaseInventoryMovementRepository'
+import { SupabaseLedgerEntryRepository } from '@/infrastructure/database/repositories/implementations/SupabaseLedgerEntryRepository'
+import { SupabaseSupplierRepository } from '@/infrastructure/database/repositories/implementations/SupabaseSupplierRepository'
+import { SupabaseTenantRepository } from '@/infrastructure/database/repositories/implementations/SupabaseTenantRepository'
+import { SupabaseUserRepository } from '@/infrastructure/database/repositories/implementations/SupabaseUserRepository'
 
 // Domain Services
 import { PricingService } from '@/core/domain/services/PricingService'
@@ -135,6 +135,11 @@ export class RepositoryFactory {
     }
     
     return this.repositories.get(cacheKey)!
+  }
+
+  // Static method for operations that don't require tenant context
+  static getUserRepositoryStatic(): IUserRepository {
+    return new SupabaseUserRepository('')
   }
 
   // Domain Services

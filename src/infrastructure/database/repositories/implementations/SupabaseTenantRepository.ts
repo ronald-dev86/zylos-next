@@ -1,6 +1,6 @@
 import { ITenantRepository } from '@/core/services/ITenantRepository'
 import { Tenant } from '@/core/entities/Tenant'
-import { BaseRepository } from './BaseRepository'
+import { BaseRepository } from '../base/BaseRepository'
 import { Database } from '@/shared/types/database'
 import { PaginationParams, PaginatedResponse } from '@/shared/types/common'
 

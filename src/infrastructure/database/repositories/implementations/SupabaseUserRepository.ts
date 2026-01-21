@@ -1,6 +1,6 @@
 import { IUserRepository } from '@/core/services/IUserRepository'
 import { User } from '@/core/entities/User'
-import { BaseRepository } from './BaseRepository'
+import { BaseRepository } from '../base/BaseRepository'
 import { Database } from '@/shared/types/database'
 
 export class SupabaseUserRepository extends BaseRepository<User> implements IUserRepository {
@@ -27,6 +27,10 @@ export class SupabaseUserRepository extends BaseRepository<User> implements IUse
     email: string
     role: 'super_admin' | 'admin' | 'vendedor' | 'contador'
   }): Promise<User> {
+    if (!this.tenantId) {
+      throw new Error('Tenant ID is required to create user')
+    }
+    
     const { data, error } = await this.withTenantFilter()
       .from('users')
       .insert([{
@@ -58,11 +62,21 @@ export class SupabaseUserRepository extends BaseRepository<User> implements IUse
     return this.mapToEntity(data[0])
   }
 
-  async findByTenantId(): Promise<User[]> {
-    const { data, error } = await this.withTenantFilter()
-      .from('users')
-      .select('*')
-      .order('created_at', { ascending: false })
+  async findByTenantId(tenantId?: string): Promise<User[]> {
+    let query;
+    
+    if (tenantId) {
+      query = this.supabase
+        .from('users')
+        .select('*')
+        .eq('tenant_id', tenantId);
+    } else {
+      query = this.withTenantFilter()
+        .from('users')
+        .select('*');
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false })
 
     if (error) throw new Error(`Failed to find users by tenant: ${error.message}`)
     if (!data) return []
@@ -71,7 +85,7 @@ export class SupabaseUserRepository extends BaseRepository<User> implements IUse
   }
 
   async update(id: string, data: Partial<Omit<User, 'id' | 'createdAt' | 'updatedAt' | 'tenantId'>>): Promise<User> {
-    const { data: updatedData, error } = await this.withTenantFilter()
+    const query = this.withTenantFilter()
       .from('users')
       .update({
         email: data.email,
@@ -79,18 +93,30 @@ export class SupabaseUserRepository extends BaseRepository<User> implements IUse
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
-      .select()
-      .single()
+      
+    // Only add tenant filter if tenantId is available
+    if (this.tenantId) {
+      query.eq('tenant_id', this.tenantId)
+    }
+    
+    const { data: updatedData, error } = await query.select().single()
 
     if (error) throw new Error(`Failed to update user: ${error.message}`)
     return this.mapToEntity(updatedData)
   }
 
   async delete(id: string): Promise<void> {
+    if (!this.tenantId) {
+      throw new Error('Tenant ID is required to delete user')
+    }
     await this.deleteInternal(id)
   }
 
   async updateRole(id: string, role: 'super_admin' | 'admin' | 'vendedor' | 'contador'): Promise<User> {
+    if (!this.tenantId) {
+      throw new Error('Tenant ID is required to update user role')
+    }
+    
     const { data, error } = await this.withTenantFilter()
       .from('users')
       .update({
@@ -98,6 +124,7 @@ export class SupabaseUserRepository extends BaseRepository<User> implements IUse
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
+      .eq('tenant_id', this.tenantId)
       .select()
       .single()
 

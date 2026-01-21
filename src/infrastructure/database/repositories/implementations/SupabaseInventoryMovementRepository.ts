@@ -1,6 +1,6 @@
 import { IInventoryMovementRepository } from '@/core/services/IInventoryMovementRepository'
 import { InventoryMovement } from '@/core/entities/InventoryMovement'
-import { BaseRepository } from './BaseRepository'
+import { BaseRepository } from '../base/BaseRepository'
 import { Database } from '@/shared/types/database'
 import { PaginationParams, PaginatedResponse } from '@/shared/types/common'
 
