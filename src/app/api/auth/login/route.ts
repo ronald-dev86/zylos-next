@@ -1,137 +1,171 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@supabase/supabase-js';
+import { AuthenticateUserUseCase } from '@/core/usecases/AuthenticateUserUseCase';
+import { RepositoryFactory } from '@/infrastructure/factories/RepositoryFactory';
+import { 
+  InvalidCredentialsError, 
+  TenantNotFoundError 
+} from '@/shared/errors/ApplicationError';
+import { 
+  createSuccessResponse, 
+  createErrorResponse 
+} from '@/shared/utils/api-response';
+import { 
+  extractSubdomain, 
+  setAuthCookie 
+} from '@/shared/utils/auth-validation';
+import { loginSchema } from '@/shared/schemas/auth-schemas';
 
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-});
-
+/**
+ * API Route para autenticación de usuarios
+ * POST /api/auth/login
+ * 
+ * Implementa autenticación segura con:
+ * - Validación de inputs con Zod
+ * - Detección de subdominio
+ * - Use Case de negocio
+ * - HttpOnly cookies
+ * - Manejo de errores específicos
+ */
 export async function POST(request: NextRequest) {
   try {
+    console.log('[Auth Login] Request received');
+    
+    // 1. Parsear y validar request body
     const body = await request.json();
-    const { email, password } = loginSchema.parse(body);
-
-    // Create Supabase client with anon key for login
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-    // Step 1: Authenticate user with Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    const validationResult = loginSchema.safeParse(body);
+    
+    if (!validationResult.success) {
+      console.log('[Auth Login] Validation failed:', validationResult.error.errors);
+      return createErrorResponse(
+        'Datos inválidos',
+        400,
+        validationResult.error.errors
+      );
+    }
+    
+    const { email, password, subdomain: providedSubdomain } = validationResult.data;
+    console.log('[Auth Login] Parsed data:', { email, providedSubdomain });
+    
+    // 2. Detectar subdominio desde hostname o usar el proporcionado
+    const hostname = request.headers.get('host') || '';
+    const detectedSubdomain = extractSubdomain(hostname);
+    const finalSubdomain = providedSubdomain || detectedSubdomain;
+    
+    console.log('[Auth Login] Tenant detection:', { hostname, detectedSubdomain, finalSubdomain });
+    
+    if (!finalSubdomain) {
+      return createErrorResponse(
+        'No se pudo detectar el subdominio. Proporción el subdominio o acceda desde tu URL personalizada.',
+        400
+      );
+    }
+    
+    // 3. Crear repositorios y ejecutar use case
+    const factory = RepositoryFactory.getInstance(finalSubdomain);
+    const userRepo = factory.getUserRepository();
+    const tenantRepo = factory.getTenantRepository();
+    
+    const authenticateUseCase = new AuthenticateUserUseCase(userRepo, tenantRepo);
+    
+    console.log('[Auth Login] Executing authentication for tenant:', finalSubdomain);
+    
+    const result = await authenticateUseCase.execute({
       email,
       password,
+      subdomain: finalSubdomain
     });
-
-    if (authError || !authData.user) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Credenciales inválidas',
-          code: 'INVALID_CREDENTIALS' 
-        },
-        { status: 401 }
-      );
-    }
-
-    // Step 2: Get user's tenant info from our users table
-    const { data: userInfo, error: userError } = await supabase
-      .from('users')
-      .select(`
-        tenant_id,
-        role,
-        tenants!inner (
-          id,
-          name,
-          subdomain,
-          active
-        )
-      `)
-      .eq('id', authData.user.id)
-      .single();
-
-    if (userError || !userInfo) {
-      console.error('User info fetch error:', userError);
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Error al obtener información del usuario',
-          code: 'USER_INFO_ERROR' 
-        },
-        { status: 500 }
-      );
-    }
-
-    // Check if tenant is active
-    if (!userInfo.tenants || userInfo.tenants.length === 0 || !userInfo.tenants[0]?.active) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Tenant inactivo',
-          code: 'TENANT_INACTIVE' 
-        },
-        { status: 403 }
-      );
-    }
-
-    // Update user metadata with current tenant context
-    await supabase.auth.updateUser({
-      data: {
-        current_tenant_id: userInfo.tenant_id,
-        current_tenant_name: userInfo.tenants[0]?.name,
-        current_tenant_subdomain: userInfo.tenants[0]?.subdomain,
-        current_role: userInfo.role,
-      }
-    });
-
-    console.log('=== LOGIN SUCCESS ===');
-    console.log('User:', authData.user.email);
-    console.log('Tenant:', userInfo.tenants?.[0]);
-    console.log('Role:', userInfo.role);
-    console.log('===================');
-
-    // For platform login, redirect to tenant subdomain
-    const redirectUrl = `https://${userInfo.tenants[0]?.subdomain}.zylos.com/dashboard?token=${authData.session.access_token}`;
     
-    return NextResponse.json({
-      success: true,
-      data: {
-        user: {
-          id: authData.user.id,
-          email: authData.user.email,
-          role: userInfo.role,
-        },
-        tenant: {
-          id: userInfo.tenants[0]?.id,
-          name: userInfo.tenants[0]?.name,
-          subdomain: userInfo.tenants[0]?.subdomain,
-        },
-        redirectUrl,
-        message: 'Inicio de sesión exitoso'
-      }
+    console.log('[Auth Login] Authentication result:', { 
+      success: result.success, 
+      error: result.error,
+      hasUser: !!result.user,
+      hasTenant: !!result.tenant
     });
-
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Datos inválidos', 
-          details: error.issues,
-          code: 'INVALID_DATA' 
-        },
-        { status: 400 }
-      );
+    
+    if (!result.success) {
+      let statusCode = 401;
+      
+      // Determinar código de estado específico según el error
+      if (result.error?.includes('no encontrado')) {
+        statusCode = 404;
+      } else if (result.error?.includes('desactivado')) {
+        statusCode = 403;
+      }
+      
+      return createErrorResponse(result.error || 'Autenticación fallida', statusCode);
     }
-
-    console.error('Login error:', error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Error al iniciar sesión',
-        code: 'LOGIN_ERROR' 
+    
+    // 4. Establecer cookie httpOnly y retornar éxito
+    console.log('[Auth Login] Setting auth cookie for user:', result.user?.email);
+    
+    const response = createSuccessResponse({
+      success: true,
+      message: 'Autenticación exitosa',
+      user: {
+        id: result.user?.id,
+        email: result.user?.email,
+        role: result.user?.role,
+        firstName: result.user?.firstName,
+        lastName: result.user?.lastName
       },
-      { status: 500 }
+      tenant: {
+        id: result.tenant?.id,
+        name: result.tenant?.name,
+        subdomain: result.tenant?.subdomain,
+        domain: result.tenant?.subdomain + '.zylos.com'
+      },
+      redirectUrl: '/dashboard'
+    });
+    
+    // Establecer cookie con todos los datos necesarios
+    const finalResponse = setAuthCookie(
+      response,
+      result.token!,
+      result.user!,
+      result.tenant!
     );
+    
+    console.log('[Auth Login] Response sent successfully');
+    return finalResponse;
+    
+  } catch (error) {
+    console.error('[Auth Login] Unexpected error:', error);
+    
+    // Manejo específico de errores de autenticación
+    if (error instanceof InvalidCredentialsError) {
+      return createErrorResponse('Credenciales inválidas', 401);
+    }
+    
+    if (error instanceof TenantNotFoundError) {
+      return createErrorResponse('Tenant no encontrado o inactivo', 404);
+    }
+    
+    if (error instanceof z.ZodError) {
+      return createErrorResponse('Datos inválidos', 400, error.errors);
+    }
+    
+    return createErrorResponse('Error interno del servidor', 500);
   }
+}
+
+/**
+ * Opciones para el método GET (para información del endpoint)
+ */
+export async function GET() {
+  return createSuccessResponse({
+    endpoint: '/api/auth/login',
+    method: 'POST',
+    description: 'Autenticación de usuarios del sistema Zylos ERP',
+    usage: {
+      email: 'string (required) - Email del usuario',
+      password: 'string (required) - Contraseña del usuario',
+      subdomain: 'string (optional) - Subdominio del tenant'
+    },
+    notes: [
+      'Si no se proporciona subdominio, se detecta automáticamente desde el hostname',
+      'La autenticación establece cookie httpOnly con 7 días de duración',
+      'Response incluye user, tenant y redirectUrl'
+    ]
+  });
 }
