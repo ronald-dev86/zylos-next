@@ -24,9 +24,10 @@ export class SupabaseTenantRepository extends BaseRepository<Tenant> implements 
     return 'tenants'
   }
 
-async create(tenant: {
+  async create(tenant: {
     name: string
     subdomain: string
+    active?: boolean
   }): Promise<Tenant> {
     const adminClient = SupabaseTenantRepository.createAdminClient()
     
@@ -34,7 +35,8 @@ async create(tenant: {
       .from('tenants')
       .insert([{
         name: tenant.name,
-        subdomain: tenant.subdomain
+        subdomain: tenant.subdomain,
+        active: tenant.active ?? true
       }])
       .select()
 

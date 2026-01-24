@@ -1,130 +1,105 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createClient } from '@supabase/supabase-js';
+import { CreateTenantAndUserUseCase } from '@/core/usecases/CreateTenantAndUserUseCase';
+import { RepositoryFactory } from '@/infrastructure/factories/RepositoryFactory';
+import { createSuccessResponse, createErrorResponse } from '@/shared/utils/api-response';
 
 const signupSchema = z.object({
-  storeName: z.string().min(2),
-  subdomain: z.string().min(3).regex(/^[a-z0-9]+$/, 'Solo letras y números'),
-  ownerName: z.string().min(2),
-  email: z.string().email(),
-  password: z.string().min(8),
+  storeName: z.string().min(2, 'El nombre de la tienda debe tener al menos 2 caracteres'),
+  subdomain: z.string()
+    .min(3, 'El subdominio debe tener al menos 3 caracteres')
+    .regex(/^[a-z0-9]+$/, 'El subdominio solo puede contener letras minúsculas y números'),
+  ownerName: z.string().min(2, 'El nombre del proprietario debe tener al menos 2 caracteres'),
+  email: z.string().email('Email inválido'),
+  password: z.string()
+    .min(8, 'La contraseña debe tener al menos 8 caracteres')
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'La contraseña debe contener mayúsculas, minúsculas y números'),
 });
 
 export async function POST(request: NextRequest) {
   try {
+    // Parsear y validar request
     const body = await request.json();
     const { storeName, subdomain, ownerName, email, password } = signupSchema.parse(body);
 
-    // Step 1: Create tenant using service role (bypasses RLS)
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    // Ejecutar use case de creación
+    const factory = RepositoryFactory.getInstance('*'); // No tenant context para creación
+    const tenantRepo = factory.getTenantRepository();
+    const userRepo = factory.getUserRepository('*'); // Temporal, sin tenant hasta que se cree
     
-    // Create service role client for tenant creation (bypasses RLS)
-    const serviceClient = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
-
-    const { data: newTenant, error: tenantError } = await serviceClient
-      .from('tenants')
-      .insert({
-        name: storeName,
-        subdomain: subdomain.toLowerCase(),
-        active: true
-      })
-      .select()
-      .single();
-
-    if (tenantError || !newTenant) {
-      console.error('Tenant creation error:', tenantError);
-      return NextResponse.json(
-        { success: false, error: 'Error al crear tienda: ' + (tenantError?.message || 'Unknown error') },
-        { status: 500 }
-      );
-    }
-
-    // Step 2: Create user with Supabase Auth (with tenant metadata)
-    const { data: authData, error: authError } = await serviceClient.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          tenant_id: newTenant.id,
-          role: 'admin'
-        }
-      }
-    });
-
-    if (authError || !authData.user) {
-      console.error('Auth user creation error:', authError);
-      // Rollback tenant creation
-      await serviceClient.from('tenants').delete().eq('id', newTenant.id);
-      
-      return NextResponse.json(
-        { success: false, error: 'Error al crear usuario: ' + (authError?.message || 'Unknown error') },
-        { status: 500 }
-      );
-    }
-
-    // Step 3: Sign in user immediately (user record will be created by trigger)
-    const { data: sessionData, error: sessionError } = await serviceClient.auth.signInWithPassword({
+    const createTenantUserUseCase = new CreateTenantAndUserUseCase(tenantRepo, userRepo);
+    
+    const result = await createTenantUserUseCase.execute({
+      storeName,
+      subdomain,
+      ownerName,
       email,
       password
     });
 
-    if (sessionError || !sessionData.session) {
-      console.error('Session creation error:', sessionError);
-      // Cleanup auth user and tenant
-      await serviceClient.auth.admin.deleteUser(authData.user.id);
-      await serviceClient.from('tenants').delete().eq('id', newTenant.id);
-      
-      return NextResponse.json(
-        { success: false, error: 'Error al crear sesión: ' + (sessionError?.message || 'Unknown error') },
-        { status: 500 }
-      );
+    if (!result.success) {
+      return createErrorResponse(result.error || 'Error al crear tienda', 400);
     }
 
-    console.log('=== SUPABASE AUTH TENANT CREATION ===');
-    console.log('Tenant:', newTenant);
-    console.log('Auth User:', authData.user);
-    console.log('Session:', sessionData.session);
-    console.log('User record will be created by trigger');
-    console.log('=====================================');
-
-    // Redirect to new tenant
-    const redirectUrl = `https://${newTenant.subdomain}.zylos.com/dashboard?token=${sessionData.session.access_token}`;
-    
-    return NextResponse.json({
+    // Establecer cookie httpOnly
+    const response = createSuccessResponse({
       success: true,
-      data: {
-        tenant: newTenant,
-        user: {
-          id: authData.user.id,
-          email: authData.user.email,
-          name: ownerName,
-          role: 'admin',
-          tenant_id: newTenant.id,
-        },
-        redirectUrl,
-        message: 'Tienda creada exitosamente'
-      }
+      tenant: result.tenant,
+      user: result.user,
+      redirectUrl: `https://${result.tenant?.subdomain}.zylos.com/dashboard`
     });
+    
+    // Cookie con 7 días de expiración
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+    
+    response.cookies.set('zylos_auth', JSON.stringify({
+      token: result.token,
+      user: result.user,
+      tenant: result.tenant,
+      expiresAt: expiresAt.toISOString()
+    }), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60, // 7 días
+      path: '/'
+    });
+
+    return response;
 
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { success: false, error: 'Datos inválidos', details: error.issues },
-        { status: 400 }
-      );
+      return createErrorResponse('Datos inválidos', 400, error.errors);
     }
 
-    console.error('Signup error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Error al crear la tienda' },
-      { status: 500 }
-    );
+    console.error('[API Signup Error]', error);
+    return createErrorResponse('Error interno del servidor', 500);
   }
+}
+
+export async function OPTIONS() {
+  return NextResponse.json({
+    endpoint: '/api/auth/signup',
+    method: 'POST',
+    description: 'Crear nueva tienda (tenant) y usuario administrador',
+    usage: {
+      body: {
+        storeName: 'string (required) - Nombre de la tienda',
+        subdomain: 'string (required) - Subdominio único',
+        ownerName: 'string (required) - Nombre del proprietario',
+        email: 'string (required) - Email del administrador',
+        password: 'string (required) - Contraseña segura'
+      }
+    },
+    examples: [
+      {
+        storeName: 'Mi Tienda',
+        subdomain: 'mitienda',
+        ownerName: 'Juan Pérez',
+        email: 'juan@mitienda.com',
+        password: 'MiPassword123'
+      }
+    ]
+  });
 }

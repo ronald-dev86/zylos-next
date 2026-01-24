@@ -127,11 +127,12 @@ export class RepositoryFactory {
   }
 
   // User Repository
-  getUserRepository(): IUserRepository {
+  getUserRepository(tenantId?: string): IUserRepository {
     const cacheKey = 'user'
+    const effectiveTenantId = tenantId || this.tenantId
     
     if (!this.repositories.has(cacheKey)) {
-      this.repositories.set(cacheKey, new SupabaseUserRepository(this.tenantId))
+      this.repositories.set(cacheKey, new SupabaseUserRepository(effectiveTenantId))
     }
     
     return this.repositories.get(cacheKey)!

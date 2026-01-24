@@ -1,115 +1,100 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { RepositoryFactory } from '@/infrastructure/factories/RepositoryFactory';
+import { createSuccessResponse, createErrorResponse } from '@/shared/utils/api-response';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const userCompleteSchema = z.object({
+  userId: z.string().uuid('ID de usuario inválido'),
+  tenantId: z.string().uuid('ID de tenant inválido'),
+  retryCount: z.number().min(0).default(0)
+});
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, tenantId, retryCount = 0 } = await request.json();
+    const body = await request.json();
+    const { userId, tenantId, retryCount } = userCompleteSchema.parse(body);
 
-    if (!userId || !tenantId) {
-      return NextResponse.json(
-        { error: 'Missing required parameters' },
-        { status: 400 }
-      );
-    }
-
-    const serviceClient = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
-
-    // Check if user record exists
-    const { data: user, error } = await serviceClient
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Database error checking user:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
+    // Obtener repositorio de usuarios sin tenant context para operaciones admin
+    const userRepo = RepositoryFactory.getUserRepositoryStatic();
+    
+    // Verificar si el usuario existe
+    const user = await userRepo.findById(userId);
+    
     if (user) {
-      // User exists, success!
-      console.log('User record found:', user);
-      return NextResponse.json({
+      // Usuario existe, éxito!
+      return createSuccessResponse({
         success: true,
-        user,
+        user: {
+          id: user.id,
+          email: user.email,
+          tenantId: user.tenantId,
+          role: user.role,
+          createdAt: user.createdAt
+        },
         message: 'User record successfully created'
       });
     }
 
-    // User doesn't exist yet, check if we should retry
+    // Usuario no existe yet, verificar si debemos reintentar
     if (retryCount >= 5) {
-      // After 5 retries, create manually
+      // Después de 5 reintentos, crear manualmente con datos mínimos
       console.log('Max retries reached, creating user manually');
       
-      // Get auth user info - TODO: Fix admin API call
-      // const { data: authUser, error: authError } = await serviceClient.auth.admin.getUserById(userId);
-      
-      // For now, create user manually
-      const { data: manualUser, error: manualError } = await serviceClient
-        .from('users')
-        .insert({
-          id: userId,
-          email: `user-${userId}@example.com`, // Temp email
-          tenant_id: tenantId,
-          role: 'admin'
-        })
-        .select()
-        .single();
-
-      if (manualError) {
-        return NextResponse.json(
-          { error: 'Failed to create user manually: ' + manualError.message },
-          { status: 500 }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        user: manualUser,
-        message: 'User record created manually after trigger timeout'
-      });
+      // Para este caso, necesitaríamos obtener información del auth user
+      // Por ahora, retornamos error específico
+      return createErrorResponse(
+        'User creation failed after maximum retries. Please contact support.',
+        404,
+        { userId, tenantId, retryCount }
+      );
     }
 
-    // Schedule retry with exponential backoff
+    // Programar retry con exponential backoff
     const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s, 8s, 16s
     
-    setTimeout(async () => {
-      try {
-        await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/user-complete`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userId,
-            tenantId,
-            retryCount: retryCount + 1
-          })
-        });
-      } catch (retryError) {
-        console.error('Retry failed:', retryError);
-      }
-    }, delay);
-
-    return NextResponse.json({
+    // En un entorno real, esto debería ser una cola de mensajes
+    // Por ahora, simplemente retornamos información para que el cliente reintente
+    return createSuccessResponse({
       pending: true,
       retryCount: retryCount + 1,
-      message: `User creation in progress... (${retryCount + 1}/5)`
+      suggestedDelay: delay,
+      message: `User creation in progress... (${retryCount + 1}/5)`,
+      nextRetryAt: new Date(Date.now() + delay).toISOString()
     });
 
   } catch (error) {
-    console.error('Background worker error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    if (error instanceof z.ZodError) {
+      return createErrorResponse('Datos inválidos', 400, error.errors);
+    }
+
+    console.error('[API User-Complete Error]', error);
+    return createErrorResponse('Error interno del servidor', 500);
   }
+}
+
+export async function GET() {
+  return NextResponse.json({
+    endpoint: '/api/auth/user-complete',
+    method: 'POST',
+    description: 'Verifica y completa la creación de usuarios después del signup',
+    usage: {
+      body: {
+        userId: 'string (required) - UUID del usuario',
+        tenantId: 'string (required) - UUID del tenant',
+        retryCount: 'number (optional) - Número de reintentos realizados'
+      }
+    },
+    examples: [
+      {
+        userId: '12345678-1234-1234-1234-123456789012',
+        tenantId: '87654321-4321-4321-4321-210987654321',
+        retryCount: 0
+      }
+    ],
+    notes: [
+      'Este endpoint es utilizado internamente durante el proceso de signup',
+      'Implementa un mecanismo de retry con exponential backoff',
+      'Después de 5 reintentos fallidos, se requiere intervención manual'
+    ]
+  });
 }

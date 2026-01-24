@@ -112,6 +112,142 @@ export class SupabaseUserRepository extends BaseRepository<User> implements IUse
     await this.deleteInternal(id)
   }
 
+  async createWithAuth(user: {
+    email: string
+    password: string
+    name?: string
+    role: 'super_admin' | 'admin' | 'vendedor' | 'contador'
+    tenantId: string
+  }): Promise<User | null> {
+    const adminClient = SupabaseUserRepository.createAdminClient();
+    
+    try {
+      // 1. Crear usuario en Supabase Auth
+      const { data: authData, error: authError } = await adminClient.auth.signUp({
+        email: user.email,
+        password: user.password,
+        options: {
+          data: {
+            tenant_id: user.tenantId,
+            role: user.role,
+            name: user.name
+          }
+        }
+      });
+
+      if (authError || !authData.user) {
+        throw new Error(`Failed to create auth user: ${authError?.message}`);
+      }
+
+      // 2. Esperar a que el trigger cree el usuario en la base de datos
+      let retries = 0;
+      const maxRetries = 10;
+      
+      while (retries < maxRetries) {
+        const { data: userData, error: userError } = await adminClient
+          .from('users')
+          .select('*')
+          .eq('id', authData.user.id)
+          .single();
+
+        if (!userError && userData) {
+          return this.mapToEntity(userData);
+        }
+
+        retries++;
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      // 3. Si el trigger no funciona, crear manualmente
+      const { data: manualUserData, error: manualError } = await adminClient
+        .from('users')
+        .insert([{
+          id: authData.user.id,
+          email: user.email,
+          tenant_id: user.tenantId,
+          role: user.role
+        }])
+        .select()
+        .single();
+
+      if (manualError) {
+        // Rollback auth user
+        await adminClient.auth.admin.deleteUser(authData.user.id);
+        throw new Error(`Failed to create user record: ${manualError.message}`);
+      }
+
+      return this.mapToEntity(manualUserData);
+
+    } catch (error) {
+      throw new Error(`createWithAuth failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async findByEmailAndTenant(email: string, tenantId: string): Promise<User | null> {
+    const adminClient = SupabaseUserRepository.createAdminClient();
+    
+    const { data, error } = await adminClient
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .eq('tenant_id', tenantId)
+      .limit(1);
+
+    if (error) throw new Error(`Failed to find user by email and tenant: ${error.message}`);
+    if (!data || data.length === 0) return null;
+
+    return this.mapToEntity(data[0]);
+  }
+
+  async authenticate(email: string, password: string): Promise<{
+    success: boolean
+    user?: User
+    token?: string
+    error?: string
+  }> {
+    const adminClient = SupabaseUserRepository.createAdminClient();
+    
+    try {
+      const { data: authData, error: authError } = await adminClient.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (authError || !authData.session) {
+        return {
+          success: false,
+          error: 'Credenciales inválidas'
+        };
+      }
+
+      // Obtener datos del usuario desde la base de datos
+      const { data: userData, error: userError } = await adminClient
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      if (userError || !userData) {
+        return {
+          success: false,
+          error: 'Usuario no encontrado'
+        };
+      }
+
+      return {
+        success: true,
+        user: this.mapToEntity(userData),
+        token: authData.session.access_token
+      };
+
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Error en autenticación'
+      };
+    }
+  }
+
   async updateRole(id: string, role: 'super_admin' | 'admin' | 'vendedor' | 'contador'): Promise<User> {
     if (!this.tenantId) {
       throw new Error('Tenant ID is required to update user role')

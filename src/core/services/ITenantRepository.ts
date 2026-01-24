@@ -12,4 +12,5 @@ export interface ITenantRepository {
   update(id: string, data: Partial<Omit<Tenant, 'id' | 'createdAt' | 'updatedAt'>>): Promise<Tenant>
   activate(id: string): Promise<Tenant>
   deactivate(id: string): Promise<Tenant>
+  delete(id: string): Promise<void>
 }
