@@ -2,7 +2,7 @@
 
 ## 🎯 **ESTADO ACTUAL DE IMPLEMENTACIÓN**
 
-### **✅ Completados (28 endpoints)**
+### **✅ Completados (35 endpoints)**
 ### **🔄 Por Implementar (17+ endpoints)**
 
 ---
@@ -153,18 +153,18 @@ GET    /api/ledger/balance/[entityType] # Balance por tipo
 - **👥 Users:** 7/7 endpoints (100%) ✅
 - **📊 Dashboard:** 2/2 endpoints (100%)
 - **📦 Products:** 10/10 endpoints (100%) ✅
+- **🤝 Customers:** 7/7 endpoints (100%) ✅
 
 ### **❌ Módulos Pendientes:**
-- **🤝 Customers:** 0/7 endpoints (0%)
 - **🏭 Suppliers:** 0/7 endpoints (0%)
 - **💰 Sales:** 0/8 endpoints (0%)
 - **📦 Inventory:** 0/6 endpoints (0%)
 - **💳 Ledger:** 0/7 endpoints (0%)
 
 ### **📊 Métricas Generales:**
-- **Total Endpoints Implementados:** 28/45+ (62%)
-- **Estado Actual:** 🟢 **Auth, Users, Dashboard y Products completos**
-- **Próxima Fase:** Customers CRUD
+- **Total Endpoints Implementados:** 35/52+ (67%)
+- **Estado Actual:** 🟢 **Auth, Users, Dashboard, Products y Customers completos**
+- **Próxima Fase:** Suppliers CRUD
 - **Arquitectura:** 100% Clean Architecture + DDD + Regla de Oro
 
 ---
