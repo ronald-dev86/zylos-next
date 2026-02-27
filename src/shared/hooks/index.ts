@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, DependencyList } from 'react'
 
 // Export AuthContext hook
 export { useAuth } from '../contexts/AuthContext'
@@ -6,7 +6,7 @@ export { useAuth } from '../contexts/AuthContext'
 // Generic hook for data fetching with loading and error states
 export function useAsyncData<T>(
   fetcher: () => Promise<T>,
-  dependencies: unknown[] = []
+  dependencies: DependencyList = []
 ) {
   const [data, setData] = useState<T | null>(null)
   const [loading, setLoading] = useState(false)
