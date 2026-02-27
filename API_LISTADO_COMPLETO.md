@@ -89,16 +89,17 @@
 
 ## 🚀 **PRÓXIMOS MÓDULOS A IMPLEMENTAR (17+ endpoints)**
 
-### **🤝 Customers CRUD (7 endpoints)**
-```
-GET    /api/customs                    # Listar clientes (paginado)
-POST   /api/customs                    # Crear cliente
-GET    /api/customs/[id]                # Get cliente
-PUT    /api/customs/[id]                # Update cliente
-DELETE /api/customs/[id]                # Delete cliente
-GET    /api/customs/by-email/[email]     # Búsqueda por email
-GET    /api/customs/search              # Búsqueda por nombre
-```
+### **🤝 Customers CRUD (7 endpoints - 100% COMPLETO)**
+
+| **Endpoint** | **Método** | **Descripción** | **Estado** |
+|--------------|--------------|------------------|------------|
+| `/api/customers` | GET | Listar clientes (paginado) | ✅ **FUNCIONAL** |
+| `/api/customers` | POST | Crear cliente | ✅ **FUNCIONAL** |
+| `/api/customers/[id]` | GET | Obtener cliente | ✅ **FUNCIONAL** |
+| `/api/customers/[id]` | PUT | Actualizar cliente | ✅ **FUNCIONAL** |
+| `/api/customers/[id]` | DELETE | Eliminar cliente | ✅ **FUNCIONAL** |
+| `/api/customers/by-email/[email]` | GET | Búsqueda por email | ✅ **FUNCIONAL** |
+| `/api/customers/search` | GET | Búsqueda por nombre | ✅ **FUNCIONAL** |
 
 ### **🏭 Suppliers CRUD (7 endpoints - 100% COMPLETO)**
 
@@ -173,15 +174,13 @@ GET    /api/ledger/balance/[entityType] # Balance por tipo
 ## 🎯 **PRIORIDADES INMEDIATAS**
 
 ### **🔥 Alta Prioridad:**
-1. **Sales Management** - Gestión de ventas
+1. **Sales Management** - Gestión de ventas (8 endpoints)
 
 ### **🔄 Media Prioridad:**
-3. **Customers CRUD** - Gestión de clientes
-4. **Suppliers CRUD** - Gestión de proveedores
+2. **Inventory Management** - Movimientos de inventario (6 endpoints)
 
 ### **📊 Baja Prioridad:**
-5. **Sales Management** - Lógica de negocio compleja
-6. **Inventory & Ledger** - Modulos financieros
+3. **Financial Ledger** - Asientos contables (7 endpoints)
 
 ---
 
