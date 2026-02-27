@@ -32,6 +32,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: 'include'
       });
       
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Error: API response is not JSON. Server may be down or route not found.');
+        setState({
+          user: null,
+          tenant: null,
+          isAuthenticated: false,
+          isLoading: false
+        });
+        return;
+      }
+      
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
